@@ -10,11 +10,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -30,8 +25,6 @@ public class CedolinoController {
 
     @Autowired
     private PdfParserService pdfParserService;
-
-    private static final String UPLOAD_DIR = "src/main/resources/uploads/";
 
     private AppUser getCurrentUser() {
         return (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -51,20 +44,13 @@ public class CedolinoController {
         try {
             AppUser currentUser = getCurrentUser();
             
-            // 1. Save the file to disk for auto-recalculation feature
-            File uploadDir = new File(UPLOAD_DIR);
-            if (!uploadDir.exists()) {
-                uploadDir.mkdirs();
-            }
-            Path filePath = Paths.get(UPLOAD_DIR + file.getOriginalFilename());
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-            // 2. Parse the PDF
+            // Parse the PDF
             Cedolino newCedolino = pdfParserService.parsePdf(file);
             newCedolino.setFileName(file.getOriginalFilename());
+            newCedolino.setFileData(file.getBytes()); // Save raw bytes to database BLOB
             newCedolino.setUser(currentUser);
             
-            // 3. Check if already exists for upsert behavior (scoped by user)
+            // Check if already exists for upsert behavior (scoped by user)
             Optional<Cedolino> existing = repository.findAll().stream()
                 .filter(c -> c.getMese().equals(newCedolino.getMese()) 
                           && c.getAnno().equals(newCedolino.getAnno())
@@ -94,15 +80,11 @@ public class CedolinoController {
                 return ResponseEntity.status(403).build();
             }
             
-            if (c.getFileName() == null) {
+            if (c.getFileData() == null || c.getFileData().length == 0) {
                 return ResponseEntity.notFound().build();
             }
-            File file = new File(UPLOAD_DIR + c.getFileName());
-            if (!file.exists()) {
-                return ResponseEntity.notFound().build();
-            }
-            byte[] pdfBytes = Files.readAllBytes(file.toPath());
-            return ResponseEntity.ok().body(pdfBytes);
+            
+            return ResponseEntity.ok().body(c.getFileData());
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
@@ -128,17 +110,8 @@ public class CedolinoController {
                 .collect(Collectors.toList());
                 
         repository.deleteAll(userCedolini);
+        // Physical files are no longer needed to be deleted since they are cascade deleted with the entity
         
-        // Note: For a true multi-user system, we should only delete the physical files belonging to this user.
-        // For simplicity in this local version, we will delete them if they match the deleted cedolini filenames.
-        for (Cedolino c : userCedolini) {
-            if (c.getFileName() != null) {
-                File file = new File(UPLOAD_DIR + c.getFileName());
-                if (file.exists()) {
-                    file.delete();
-                }
-            }
-        }
         return ResponseEntity.ok().build();
     }
 }
