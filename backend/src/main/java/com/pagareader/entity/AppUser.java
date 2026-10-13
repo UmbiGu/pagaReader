@@ -21,7 +21,7 @@ public class AppUser {
     }
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'USER'")
     private Role role = Role.USER;
 
     public Long getId() { return id; }
