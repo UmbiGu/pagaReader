@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-auth',
@@ -38,7 +39,7 @@ import { FormsModule } from '@angular/forms';
             <span class="position-absolute top-50 start-50 translate-middle px-3 bg-body text-muted small">OR TEST ACCOUNT</span>
           </div>
 
-          <form (submit)="loginCredentials()">
+          <form (submit)="loginCredentials($event)">
             <div class="form-floating mb-3 text-start">
               <input type="email" class="form-control rounded-4" id="floatingInput" placeholder="name@example.com" [(ngModel)]="email" name="email">
               <label for="floatingInput">Email address</label>
@@ -47,7 +48,10 @@ import { FormsModule } from '@angular/forms';
               <input type="password" class="form-control rounded-4" id="floatingPassword" placeholder="Password" [(ngModel)]="password" name="password">
               <label for="floatingPassword">Password</label>
             </div>
-            <button class="btn btn-primary w-100 rounded-pill py-2 fw-bold" type="submit">Sign In</button>
+            <button class="btn btn-primary w-100 rounded-pill py-2 fw-bold" type="submit" [disabled]="isLoading">
+               <span *ngIf="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+               {{ isLoading ? 'Signing in...' : 'Sign In' }}
+            </button>
           </form>
           
           <div class="mt-4 p-3 bg-light rounded text-start small border">
@@ -62,23 +66,37 @@ import { FormsModule } from '@angular/forms';
 })
 export class AuthComponent {
   private router = inject(Router);
+  private authService = inject(AuthService);
 
   email = '';
   password = '';
   errorMsg = '';
+  isLoading = false;
 
   loginSSO() {
-    localStorage.setItem('pagareader-auth', 'true');
-    this.router.navigate(['/']);
+    alert("SSO not configured in this demo.");
   }
 
-  loginCredentials() {
+  loginCredentials(event: Event) {
+    event.preventDefault();
     this.errorMsg = '';
-    if (this.email === 'test@pagareader.com' && this.password === 'password123') {
-      localStorage.setItem('pagareader-auth', 'true');
-      this.router.navigate(['/']);
-    } else {
-      this.errorMsg = 'Invalid email or password.';
+    
+    if (!this.email || !this.password) {
+      this.errorMsg = 'Please enter both email and password.';
+      return;
     }
+
+    this.isLoading = true;
+    
+    this.authService.login({ email: this.email, password: this.password }).subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.router.navigate(['/']);
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMsg = err.status === 401 ? 'Invalid email or password.' : 'A server error occurred.';
+      }
+    });
   }
 }
