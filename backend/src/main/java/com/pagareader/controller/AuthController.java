@@ -28,7 +28,11 @@ public class AuthController {
         Optional<AppUser> userOpt = userRepository.findByEmail(request.getEmail());
         
         if (userOpt.isPresent() && passwordEncoder.matches(request.getPassword(), userOpt.get().getPassword())) {
-            String token = jwtService.generateToken(userOpt.get().getEmail());
+            AppUser user = userOpt.get();
+            java.util.Map<String, Object> claims = new java.util.HashMap<>();
+            claims.put("role", user.getRole().name());
+            
+            String token = jwtService.generateToken(claims, user.getEmail());
             return ResponseEntity.ok(new AuthResponse(token));
         }
         

@@ -34,6 +34,11 @@ import { AuthService } from '../../services/auth.service';
                 <i class="bi bi-gear me-1"></i> Settings & Archive
               </a>
             </li>
+            <li class="nav-item mx-1" *ngIf="isAdmin()">
+              <a class="nav-link px-3 rounded-pill text-danger" routerLink="/admin/users" routerLinkActive="active bg-danger bg-opacity-10 text-danger fw-bold">
+                <i class="bi bi-shield-lock me-1"></i> Admin Panel
+              </a>
+            </li>
           </ul>
           <div class="d-flex align-items-center ms-auto">
             <button class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center p-2 me-2"
@@ -66,6 +71,10 @@ export class NavbarComponent implements OnInit {
 
   isDarkTheme(): boolean {
     return this.themeService.getTheme() === 'dark';
+  }
+
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
   }
 
   logout() {

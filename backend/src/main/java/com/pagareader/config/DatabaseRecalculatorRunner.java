@@ -26,12 +26,18 @@ public class DatabaseRecalculatorRunner implements CommandLineRunner {
         Optional<AppUser> existingUser = userRepository.findByEmail("test@pagareader.com");
         if (existingUser.isPresent()) {
             adminUser = existingUser.get();
+            // Ensure existing test user is upgraded to ADMIN if running from previous DB state
+            if (adminUser.getRole() != AppUser.Role.ADMIN) {
+                adminUser.setRole(AppUser.Role.ADMIN);
+                userRepository.save(adminUser);
+            }
         } else {
             AppUser newUser = new AppUser();
             newUser.setEmail("test@pagareader.com");
             newUser.setPassword(passwordEncoder.encode("password123"));
+            newUser.setRole(AppUser.Role.ADMIN);
             adminUser = userRepository.save(newUser);
-            System.out.println("-> Seeded default user: test@pagareader.com");
+            System.out.println("-> Seeded default admin user: test@pagareader.com");
         }
         
         System.out.println("====== STARTUP COMPLETATO CON SUCCESSO ======");

@@ -29,6 +29,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll() // Allow unauthenticated access to login
+                .requestMatchers("/api/admin/**").hasRole("ADMIN") // Only Admins can manage users
                 .anyRequest().authenticated() // All other endpoints require JWT
             )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
