@@ -306,7 +306,11 @@ export class ChartsComponent implements OnInit {
       ];
     }
 
-    this.mainChartData = { labels, datasets };
+    // Force change detection by creating a completely new object for mainChartData
+    this.mainChartData = {
+      labels: [...labels],
+      datasets: [...datasets]
+    };
   }
 
   private calculateDifferences() {
