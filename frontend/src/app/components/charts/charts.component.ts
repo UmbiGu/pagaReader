@@ -1,5 +1,5 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgChartsModule } from 'ng2-charts';
 import { ChartConfiguration } from 'chart.js';
@@ -51,7 +51,7 @@ import { Payslip } from '../../models/payslip.model';
           </div>
           <div class="card-body">
             <div style="display: block; height: 400px;">
-              <canvas baseChart
+              <canvas *ngIf="isBrowser" baseChart
                 [data]="mainChartData"
                 [options]="mainChartOptions"
                 [type]="'line'">
@@ -156,7 +156,9 @@ import { Payslip } from '../../models/payslip.model';
 })
 export class ChartsComponent implements OnInit {
   payslipService = inject(PayslipService);
-
+  private platformId = inject(PLATFORM_ID);
+  
+  isBrowser = false;
   payslips: Payslip[] = [];
   filteredPayslips: Payslip[] = [];
   selectedChart: 'salary' | 'holidays' | 'rol' | 'fonte' = 'salary';

@@ -1,5 +1,5 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { NgChartsModule } from 'ng2-charts';
 import { ChartConfiguration } from 'chart.js';
 import { PayslipService } from '../../services/payslip.service';
@@ -67,7 +67,7 @@ import { Payslip } from '../../models/payslip.model';
           </div>
           <div class="card-body">
             <div style="display: block; height: 300px;">
-              <canvas baseChart
+              <canvas *ngIf="isBrowser" baseChart
                 [data]="barChartData"
                 [options]="barChartOptions"
                 [type]="'bar'">
@@ -81,7 +81,9 @@ import { Payslip } from '../../models/payslip.model';
 })
 export class HomeComponent implements OnInit {
   private payslipService = inject(PayslipService);
+  private platformId = inject(PLATFORM_ID);
   
+  isBrowser = false;
   latestNet = 0;
   totalNet = 0;
   estimatedRal = 0;
@@ -98,9 +100,13 @@ export class HomeComponent implements OnInit {
   };
 
   ngOnInit() {
+    this.isBrowser = isPlatformBrowser(this.platformId);
+    
     this.payslipService.getPayslips().subscribe(data => {
       this.calculateMetrics(data);
-      this.buildChart(data);
+      if (this.isBrowser) {
+        this.buildChart(data);
+      }
     });
   }
 
