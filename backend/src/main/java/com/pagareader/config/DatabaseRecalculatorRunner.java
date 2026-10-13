@@ -3,6 +3,7 @@ package com.pagareader.config;
 import com.pagareader.entity.AppUser;
 import com.pagareader.repository.AppUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,12 @@ public class DatabaseRecalculatorRunner implements CommandLineRunner {
     @Autowired
     private AppUserRepository userRepository;
 
+    @Value("${app.admin.email}")
+    private String adminEmail;
+
+    @Value("${app.admin.password}")
+    private String adminPassword;
+
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
@@ -23,7 +30,7 @@ public class DatabaseRecalculatorRunner implements CommandLineRunner {
         
         // 1. Seed Default Admin User
         final AppUser adminUser;
-        Optional<AppUser> existingUser = userRepository.findByEmail("test@pagareader.com");
+        Optional<AppUser> existingUser = userRepository.findByEmail(adminEmail);
         if (existingUser.isPresent()) {
             adminUser = existingUser.get();
             boolean needsUpdate = false;
@@ -34,8 +41,8 @@ public class DatabaseRecalculatorRunner implements CommandLineRunner {
                 needsUpdate = true;
             }
             // Force reset password in case it was corrupted or saved in plain text earlier
-            if (!passwordEncoder.matches("password123", adminUser.getPassword())) {
-                adminUser.setPassword(passwordEncoder.encode("password123"));
+            if (!passwordEncoder.matches(adminPassword, adminUser.getPassword())) {
+                adminUser.setPassword(passwordEncoder.encode(adminPassword));
                 needsUpdate = true;
                 System.out.println("-> Admin password resynced.");
             }
@@ -45,11 +52,11 @@ public class DatabaseRecalculatorRunner implements CommandLineRunner {
             }
         } else {
             AppUser newUser = new AppUser();
-            newUser.setEmail("test@pagareader.com");
-            newUser.setPassword(passwordEncoder.encode("password123"));
+            newUser.setEmail(adminEmail);
+            newUser.setPassword(passwordEncoder.encode(adminPassword));
             newUser.setRole(AppUser.Role.ADMIN);
             adminUser = userRepository.save(newUser);
-            System.out.println("-> Seeded default admin user: test@pagareader.com");
+            System.out.println("-> Seeded default admin user: " + adminEmail);
         }
         
         System.out.println("====== STARTUP COMPLETATO CON SUCCESSO ======");
