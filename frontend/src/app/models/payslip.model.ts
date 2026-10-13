@@ -12,7 +12,10 @@ export interface Payslip {
   totaleTrattenute: number;
   inpsTaxable: number;
   irpefTaxable: number;
+  irpefLorda: number;
   netIrpef: number;
+  detrazioni: number;
+  ulterioriDetrazioni: number;
   netSalary: number;
   remainingHolidays: number;
   remainingExFest: number;
@@ -20,4 +23,5 @@ export interface Payslip {
   fonteDipendente: number;
   fonteAzienda: number;
   fileName?: string;
+  voci?: any[];
 }

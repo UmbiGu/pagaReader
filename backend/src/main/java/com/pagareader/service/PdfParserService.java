@@ -85,6 +85,9 @@ public class PdfParserService {
             } 
             else if (trimmedLine.matches("^[\\*\\s]*F02[0-9]{3}.*") || trimmedLine.matches("^[\\*\\s]*F0332[0-1].*") || trimmedLine.contains("Quota T.F.R.") || trimmedLine.contains("Ctr.prev.compl.deducib")) {
                 voce.setTipo(VoceCedolino.TipoVoce.INFORMATIVO);
+                if (trimmedLine.contains("Detrazioni lav.dip")) cedolino.setDetrazioni(importo);
+                if (trimmedLine.contains("Ulteriore detrazione")) cedolino.setUlterioriDetrazioni(importo);
+                if (trimmedLine.contains("IRPEF lorda")) cedolino.setIrpefLorda(importo);
             }
             else if (trimmedLine.contains("Contributo IVS") || trimmedLine.contains("CIGS") || trimmedLine.contains("FIS D.Lgs") || 
                      trimmedLine.contains("Ritenute IRPEF") || trimmedLine.contains("Addizionale") || trimmedLine.contains("Imposta sostitutiva") ||

@@ -66,8 +66,11 @@ declare var bootstrap: any;
                   <td>{{ p.remainingExFest | number:'1.2-2' }}</td>
                   <td>{{ p.remainingRol | number:'1.2-2' }}</td>
                   <td class="text-success fw-bold">€ {{ p.netSalary | number:'1.2-2' }}</td>
-                  <td class="text-center pe-4">
-                    <button *ngIf="p.fileName" class="btn btn-sm btn-outline-primary rounded-circle me-2" style="width:32px; height:32px; padding:0" (click)="openPdf(p.id!)" title="View PDF">
+                  <td class="text-center pe-4" style="min-width: 140px;">
+                    <button class="btn btn-sm btn-outline-info rounded-circle me-1" style="width:32px; height:32px; padding:0" (click)="openDetails(p)" title="View Details Recap">
+                      <i class="bi bi-info-circle"></i>
+                    </button>
+                    <button *ngIf="p.fileName" class="btn btn-sm btn-outline-primary rounded-circle me-1" style="width:32px; height:32px; padding:0" (click)="openPdf(p.id!)" title="View PDF">
                       <i class="bi bi-eye"></i>
                     </button>
                     <button class="btn btn-sm btn-outline-danger rounded-circle" style="width:32px; height:32px; padding:0" (click)="deletePayslip(p.id!)" title="Delete">
@@ -85,6 +88,101 @@ declare var bootstrap: any;
               }
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details Recap Modal -->
+    <div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content bg-body">
+          <div class="modal-header border-bottom-0 bg-primary bg-opacity-10 text-primary">
+            <h5 class="modal-title fw-bold" *ngIf="selectedPayslip">
+              <i class="bi bi-calculator me-2"></i> Breakdown: {{ payslipService.getMonthName(selectedPayslip.month) }} {{ selectedPayslip.year }}
+            </h5>
+            <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close" (click)="closeDetails()"></button>
+          </div>
+          <div class="modal-body p-4" *ngIf="selectedPayslip">
+            
+            <div class="row g-4">
+              <div class="col-md-6">
+                <h6 class="fw-bold border-bottom pb-2 text-primary">Financials</h6>
+                <ul class="list-group list-group-flush small">
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    Total Gross (Competenze)
+                    <span class="fw-bold">€ {{ selectedPayslip.totaleCompetenze | number:'1.2-2' }}</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    Total Deductions (Trattenute)
+                    <span class="fw-bold text-danger">€ {{ selectedPayslip.totaleTrattenute | number:'1.2-2' }}</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0 border-primary border-2">
+                    <strong>Net Salary</strong>
+                    <strong class="text-success fs-5">€ {{ selectedPayslip.netSalary | number:'1.2-2' }}</strong>
+                  </li>
+                </ul>
+              </div>
+              
+              <div class="col-md-6">
+                <h6 class="fw-bold border-bottom pb-2 text-primary">Taxes (IRPEF)</h6>
+                <ul class="list-group list-group-flush small">
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    IRPEF Taxable Base
+                    <span class="fw-medium">€ {{ selectedPayslip.irpefTaxable | number:'1.2-2' }}</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    Gross IRPEF
+                    <span class="fw-medium">€ {{ selectedPayslip.irpefLorda | number:'1.2-2' }}</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    Deductions (Lavoro Dipendente)
+                    <span class="fw-medium text-success">€ {{ selectedPayslip.detrazioni | number:'1.2-2' }}</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0" *ngIf="selectedPayslip.ulterioriDetrazioni">
+                    Further Deductions (L.207/24)
+                    <span class="fw-medium text-success">€ {{ selectedPayslip.ulterioriDetrazioni | number:'1.2-2' }}</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0 border-primary border-2">
+                    <strong>Net IRPEF Paid</strong>
+                    <strong class="text-danger">€ {{ selectedPayslip.netIrpef | number:'1.2-2' }}</strong>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="col-md-6">
+                <h6 class="fw-bold border-bottom pb-2 text-primary">Counters (Balances)</h6>
+                <ul class="list-group list-group-flush small">
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    Holidays
+                    <span class="badge bg-primary rounded-pill">{{ selectedPayslip.remainingHolidays | number:'1.2-2' }} h</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    ROL (Permessi)
+                    <span class="badge bg-info rounded-pill">{{ selectedPayslip.remainingRol | number:'1.2-2' }} h</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    Ex-Festività
+                    <span class="badge bg-primary bg-opacity-75 rounded-pill">{{ selectedPayslip.remainingExFest | number:'1.2-2' }} h</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="col-md-6">
+                <h6 class="fw-bold border-bottom pb-2 text-primary">FONTE Pension</h6>
+                <ul class="list-group list-group-flush small">
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    Employee Contribution
+                    <span class="fw-medium">€ {{ selectedPayslip.fonteDipendente | number:'1.2-2' }}</span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                    Employer Contribution
+                    <span class="fw-medium text-info">€ {{ selectedPayslip.fonteAzienda | number:'1.2-2' }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            
+          </div>
         </div>
       </div>
     </div>
@@ -115,9 +213,26 @@ export class PayslipListComponent implements OnInit {
   uploadError = '';
   currentPdfUrl: SafeResourceUrl | null = null;
   pdfModalInstance: any;
+  detailsModalInstance: any;
+  selectedPayslip: Payslip | null = null;
 
   ngOnInit() {
     this.fetchData();
+  }
+
+  openDetails(payslip: Payslip) {
+    this.selectedPayslip = payslip;
+    if (!this.detailsModalInstance) {
+      this.detailsModalInstance = new bootstrap.Modal(document.getElementById('detailsModal'));
+    }
+    this.detailsModalInstance.show();
+  }
+
+  closeDetails() {
+    if (this.detailsModalInstance) {
+      this.detailsModalInstance.hide();
+    }
+    this.selectedPayslip = null;
   }
 
   openPdf(id: number) {

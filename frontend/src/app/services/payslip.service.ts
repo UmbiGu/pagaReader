@@ -54,14 +54,18 @@ export class PayslipService {
       totaleTrattenute: b.totaleTrattenute || 0,
       inpsTaxable: b.imponibileInps || 0,
       irpefTaxable: b.imponibileIrpef || 0,
+      irpefLorda: b.irpefLorda || 0,
       netIrpef: b.irpefNetta || 0,
+      detrazioni: b.detrazioni || 0,
+      ulterioriDetrazioni: b.ulterioriDetrazioni || 0,
       netSalary: b.nettoMese || 0,
       remainingHolidays: b.ferieSaldo || 0,
       remainingExFest: b.exFestSaldo || 0,
       remainingRol: b.rolSaldo || 0,
       fonteDipendente: b.fonteDipendente || 0,
       fonteAzienda: b.fonteAzienda || 0,
-      fileName: b.fileName
+      fileName: b.fileName,
+      voci: b.voci || []
     };
   }
 

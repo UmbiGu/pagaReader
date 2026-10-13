@@ -56,6 +56,7 @@ public class Cedolino {
     private Double irpefLorda = 0.0;
     private Double irpefNetta = 0.0;
     private Double detrazioni = 0.0;
+    private Double ulterioriDetrazioni = 0.0;
 
     // --- TOTALI ---
     private Double totaleCompetenze = 0.0;
@@ -117,6 +118,8 @@ public class Cedolino {
     public void setIrpefNetta(Double irpefNetta) { this.irpefNetta = irpefNetta; }
     public Double getDetrazioni() { return detrazioni; }
     public void setDetrazioni(Double detrazioni) { this.detrazioni = detrazioni; }
+    public Double getUlterioriDetrazioni() { return ulterioriDetrazioni; }
+    public void setUlterioriDetrazioni(Double ulterioriDetrazioni) { this.ulterioriDetrazioni = ulterioriDetrazioni; }
 
     public Double getTotaleCompetenze() { return totaleCompetenze; }
     public void setTotaleCompetenze(Double totaleCompetenze) { this.totaleCompetenze = totaleCompetenze; }
