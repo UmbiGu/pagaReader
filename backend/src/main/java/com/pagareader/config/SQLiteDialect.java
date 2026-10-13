@@ -3,6 +3,8 @@ package com.pagareader.config;
 import org.hibernate.dialect.Dialect;
 import org.hibernate.dialect.identity.IdentityColumnSupport;
 import org.hibernate.dialect.identity.IdentityColumnSupportImpl;
+import org.hibernate.engine.jdbc.env.spi.IdentifierHelper;
+import org.hibernate.tool.schema.spi.Exporter;
 
 public class SQLiteDialect extends Dialect {
     
@@ -13,6 +15,37 @@ public class SQLiteDialect extends Dialect {
     @Override
     public IdentityColumnSupport getIdentityColumnSupport() {
         return new SQLiteIdentityColumnSupport();
+    }
+
+    // Disable foreign key constraint generation since SQLite doesn't support ADD CONSTRAINT
+    @Override
+    public boolean hasAlterTable() {
+        return false;
+    }
+
+    @Override
+    public boolean dropConstraints() {
+        return false;
+    }
+
+    @Override
+    public String getAddForeignKeyConstraintString(
+            String constraintName,
+            String[] foreignKey,
+            String referencedTable,
+            String[] primaryKey,
+            boolean referencesPrimaryKey) {
+        return ""; // Prevent Hibernate from appending ADD CONSTRAINT
+    }
+
+    @Override
+    public String getAddPrimaryKeyConstraintString(String constraintName) {
+        return "";
+    }
+
+    @Override
+    public String getDropForeignKeyString() {
+        return "";
     }
 
     private static class SQLiteIdentityColumnSupport extends IdentityColumnSupportImpl {
@@ -33,8 +66,6 @@ public class SQLiteDialect extends Dialect {
 
         @Override
         public boolean hasDataTypeInIdentityColumn() {
-            // SQLite's "integer primary key autoincrement" includes the type implicitly
-            // or explicitly depending on context, but returning false helps standard exporter
             return false;
         }
     }
