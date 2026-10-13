@@ -3,9 +3,7 @@ package com.pagareader.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "cedolini", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"mese", "anno"})
-})
+@Table(name = "cedolini")
 public class Cedolino {
 
     @Id
