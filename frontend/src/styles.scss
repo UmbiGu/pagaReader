@@ -1,0 +1,99 @@
+/* Global Theme Transitions */
+body {
+  transition: background-color 0.4s ease, color 0.4s ease;
+  min-height: 100vh;
+}
+
+/* Card Styling & Hover Effects */
+.card {
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, background-color 0.4s ease, border-color 0.4s ease;
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+}
+
+/* Glassmorphism Navbar */
+.navbar.glass-nav {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+/* Dark Mode Overrides */
+[data-bs-theme="dark"] {
+  .navbar.glass-nav {
+    background: rgba(33, 37, 41, 0.85) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  
+  .card {
+    background-color: #212529;
+    border-color: rgba(255,255,255,0.05);
+  }
+  
+  .card:hover {
+    box-shadow: 0 15px 30px rgba(0,0,0,0.4) !important;
+  }
+  
+  .table-light {
+    background-color: #2b3035 !important;
+    color: #f8f9fa;
+  }
+  
+  .table {
+    --bs-table-color: #f8f9fa;
+    --bs-table-bg: transparent;
+    --bs-table-border-color: rgba(255,255,255,0.1);
+    --bs-table-striped-bg: rgba(255,255,255,0.02);
+    --bs-table-hover-bg: rgba(255,255,255,0.05);
+  }
+
+  .bg-body-tertiary {
+    background-color: #2b3035 !important;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(30px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.animate-fade-in {
+  opacity: 0;
+  animation: fadeInUp 0.6s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+}
+
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+
+/* Custom Scrollbar for better UI */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(136, 136, 136, 0.5);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(136, 136, 136, 0.8);
+}
