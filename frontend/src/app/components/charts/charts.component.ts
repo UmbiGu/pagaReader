@@ -227,12 +227,20 @@ export class ChartsComponent implements OnInit {
     if (this.selectedChart === 'salary') {
       datasets = [
         {
-          data: this.filteredPayslips.map(p => p.baseSalary + p.contingency + p.superminimo),
-          label: 'Total Gross (Fixed Base)',
+          data: this.filteredPayslips.map(p => p.totaleCompetenze),
+          label: 'Total Gross (Competenze)',
           borderColor: 'rgba(13, 110, 253, 1)',
           backgroundColor: 'rgba(13, 110, 253, 0.1)',
           fill: true,
           pointBackgroundColor: 'rgba(13, 110, 253, 1)'
+        },
+        {
+          data: this.filteredPayslips.map(p => p.totaleTrattenute),
+          label: 'Total Deductions (Trattenute)',
+          borderColor: 'rgba(220, 53, 69, 1)',
+          backgroundColor: 'rgba(220, 53, 69, 0.1)',
+          fill: true,
+          pointBackgroundColor: 'rgba(220, 53, 69, 1)'
         },
         {
           data: this.filteredPayslips.map(p => p.netSalary),

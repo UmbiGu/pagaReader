@@ -111,8 +111,8 @@ export class HomeComponent implements OnInit {
       this.totalNet = data.reduce((acc, curr) => acc + curr.netSalary, 0);
       
       // Rough RAL calculation (Gross Fixed Base * 14 months typically for Terziario Confcommercio)
-      // Or we can just sum up Base + Contingency + Superminimo and multiply by 14
-      const grossFixed = latest.baseSalary + latest.contingency + latest.superminimo;
+      // Or we can just sum up Base + Contingency + Superminimo + Terzo Elemento + Str.Forf + EDR and multiply by 14
+      const grossFixed = latest.baseSalary + latest.contingency + latest.superminimo + latest.terzoElemento + latest.straordinarioForfetizzato + latest.edr;
       this.estimatedRal = grossFixed * 14; 
     } else {
       this.latestNet = 0;

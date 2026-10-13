@@ -38,6 +38,21 @@ public class PdfParserService {
         cedolino.setPagaBase(extractValueFromNextLine(text, "^PAGA BASE.*"));
         cedolino.setContingenza(extractValueFromNextLine(text, "^CONTING\\..*"));
         cedolino.setSuperminimo(extractValueFromNextLine(text, "^SUP\\.ASS\\..*"));
+        cedolino.setTerzoElemento(extractValueFromNextLine(text, "^3'ELEMEN\\..*"));
+        cedolino.setStraordinarioForfetizzato(extractValueFromNextLine(text, "^Str\\.Forf\\..*"));
+        cedolino.setEdr(extractValueFromNextLine(text, "^E\\.d\\.r\\..*"));
+
+        // 2.5 Totali Mensili (Totale Competenze, Totale Trattenute)
+        // Nel layout Zucchetti i totali vengono stampati spesso subito prima della riga "Residuo AP Goduto Saldo Maturato"
+        // in due righe separate: prima le trattenute, poi le competenze.
+        // Esempio:
+        // 1.195,56
+        // 4.418,37 Residuo AP
+        Matcher mTot = Pattern.compile("([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s*\\n\\s*([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s+Residuo AP", Pattern.CASE_INSENSITIVE).matcher(text);
+        if (mTot.find()) {
+            cedolino.setTotaleTrattenute(parseItalianNumber(mTot.group(1)));
+            cedolino.setTotaleCompetenze(parseItalianNumber(mTot.group(2)));
+        }
 
         // 3. Imponibili del MESE e IRPEF netta (Sulla stessa riga)
         // Evitiamo i progressivi di fine pagina (Imp. INPS, Imp. IRPEF) puntando alle voci esplicite mensili.

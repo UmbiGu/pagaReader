@@ -52,7 +52,7 @@ import { FormsModule } from '@angular/forms';
           
           <div class="mt-4 p-3 bg-light rounded text-start small border">
             <strong>Demo Credentials:</strong><br>
-            Email: <code>test@pagareader.com</code><br>
+            Email: <code>test&#64;pagareader.com</code><br>
             Password: <code>password123</code>
           </div>
         </div>
