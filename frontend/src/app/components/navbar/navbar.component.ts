@@ -1,8 +1,8 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { RouterLink, RouterLinkActive, Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { ThemeService } from '../../services/theme.service';
-import { PLATFORM_ID } from '@angular/core';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-navbar',
@@ -18,7 +18,7 @@ import { PLATFORM_ID } from '@angular/core';
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav me-auto mb-2 mb-lg-0 fw-medium" *ngIf="isLoggedIn">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0 fw-medium" *ngIf="isLoggedIn$ | async">
             <li class="nav-item mx-1">
               <a class="nav-link px-3 rounded-pill" routerLink="/" routerLinkActive="active bg-primary bg-opacity-10 text-primary" [routerLinkActiveOptions]="{exact: true}">
                 <i class="bi bi-house-door me-1"></i> Dashboard
@@ -36,13 +36,13 @@ import { PLATFORM_ID } from '@angular/core';
             </li>
           </ul>
           <div class="d-flex align-items-center ms-auto">
-            <button class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center p-2 me-2" 
-                    style="width: 40px; height: 40px; border: 1px solid var(--bs-border-color);" 
-                    (click)="toggleTheme()" 
+            <button class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center p-2 me-2"
+                    style="width: 40px; height: 40px; border: 1px solid var(--bs-border-color);"
+                    (click)="toggleTheme()"
                     title="Toggle Dark/Light Mode">
               <i class="bi fs-5" [ngClass]="isDarkTheme() ? 'bi-moon-stars-fill text-warning' : 'bi-sun-fill text-warning'"></i>
             </button>
-            <button *ngIf="isLoggedIn" class="btn btn-outline-danger rounded-pill px-3 py-1" (click)="logout()">
+            <button *ngIf="isLoggedIn$ | async" class="btn btn-outline-danger rounded-pill px-3 py-1" (click)="logout()">
               <i class="bi bi-box-arrow-right"></i>
             </button>
           </div>
@@ -53,23 +53,11 @@ import { PLATFORM_ID } from '@angular/core';
 })
 export class NavbarComponent implements OnInit {
   themeService = inject(ThemeService);
-  private router = inject(Router);
-  private platformId = inject(PLATFORM_ID);
-  
-  isLoggedIn = false;
+  authService = inject(AuthService);
+
+  isLoggedIn$ = this.authService.isLoggedIn$;
 
   ngOnInit() {
-    this.checkLoginStatus();
-    // Simple mock to refresh navbar on route changes
-    this.router.events.subscribe(() => {
-      this.checkLoginStatus();
-    });
-  }
-
-  checkLoginStatus() {
-    if (isPlatformBrowser(this.platformId)) {
-      this.isLoggedIn = !!localStorage.getItem('pagareader-auth');
-    }
   }
 
   toggleTheme() {
@@ -81,10 +69,7 @@ export class NavbarComponent implements OnInit {
   }
 
   logout() {
-    if (isPlatformBrowser(this.platformId)) {
-      localStorage.removeItem('pagareader-auth');
-    }
-    this.isLoggedIn = false;
-    this.router.navigate(['/login']);
+    this.authService.logout();
+    window.location.href = '/login';
   }
 }
