@@ -41,13 +41,20 @@ import { AuthService } from '../../services/auth.service';
             </li>
           </ul>
           <div class="d-flex align-items-center ms-auto">
+            
+            <!-- App Switcher -->
+            <div class="form-check form-switch me-3 d-none d-md-flex align-items-center" title="Switch to CheckReader (Coming Soon)">
+              <input class="form-check-input me-2" type="checkbox" role="switch" id="appSwitcher" disabled>
+              <label class="form-check-label text-muted small fw-bold" for="appSwitcher"><i class="bi bi-ui-checks-grid me-1"></i> CheckReader</label>
+            </div>
+
             <button class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center p-2 me-2"
                     style="width: 40px; height: 40px; border: 1px solid var(--bs-border-color);"
                     (click)="toggleTheme()"
                     title="Toggle Dark/Light Mode">
               <i class="bi fs-5" [ngClass]="isDarkTheme() ? 'bi-moon-stars-fill text-warning' : 'bi-sun-fill text-warning'"></i>
             </button>
-            <button *ngIf="isLoggedIn$ | async" class="btn btn-outline-danger rounded-pill px-3 py-1" (click)="logout()">
+            <button *ngIf="isLoggedIn$ | async" class="btn btn-outline-danger rounded-pill px-3 py-1" (click)="logout()" title="Logout">
               <i class="bi bi-box-arrow-right"></i>
             </button>
           </div>

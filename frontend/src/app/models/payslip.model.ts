@@ -1,5 +1,6 @@
 export interface Payslip {
   id?: number;
+  employeeName?: string;
   month: number;
   year: number;
   baseSalary: number;
@@ -11,14 +12,20 @@ export interface Payslip {
   totaleCompetenze: number;
   totaleTrattenute: number;
   inpsTaxable: number;
+  inailTaxable: number;
   irpefTaxable: number;
   irpefLorda: number;
   netIrpef: number;
   detrazioni: number;
   ulterioriDetrazioni: number;
   netSalary: number;
+  ferieResidueAP: number;
+  ferieMaturate: number;
+  ferieGodute: number;
   remainingHolidays: number;
+  exFestResidueAP: number;
   remainingExFest: number;
+  rolResiduoAP: number;
   remainingRol: number;
   fonteDipendente: number;
   fonteAzienda: number;
