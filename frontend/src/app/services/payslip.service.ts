@@ -8,7 +8,7 @@ import { Payslip } from '../models/payslip.model';
 })
 export class PayslipService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/cedolini';
+  private apiUrl = 'https://pagareader-1.onrender.com/api/cedolini';
 
   getPayslips(): Observable<Payslip[]> {
     return this.http.get<any[]>(this.apiUrl).pipe(

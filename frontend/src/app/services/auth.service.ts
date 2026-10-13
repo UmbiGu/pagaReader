@@ -22,7 +22,7 @@ export class AuthService {
   }
 
   login(credentials: any): Observable<any> {
-    return this.http.post('http://localhost:8080/api/auth/login', credentials).pipe(
+    return this.http.post('https://pagareader-1.onrender.com/api/auth/login', credentials).pipe(
       tap((response: any) => {
         if (isPlatformBrowser(this.platformId) && response.token) {
           localStorage.setItem('pagareader-token', response.token);
