@@ -37,12 +37,12 @@ public class PdfParserService {
         }
 
         // 2. Competenze Fisse
-        cedolino.setPagaBase(extractValueFromNextLine(text, "^PAGA BASE.*"));
-        cedolino.setContingenza(extractValueFromNextLine(text, "^CONTING\\..*"));
-        cedolino.setSuperminimo(extractValueFromNextLine(text, "^SUP\\.ASS\\..*"));
-        cedolino.setTerzoElemento(extractValueFromNextLine(text, "^3'ELEMEN\\..*"));
-        cedolino.setStraordinarioForfetizzato(extractValueFromNextLine(text, "^Str\\.Forf\\..*"));
-        cedolino.setEdr(extractValueFromNextLine(text, "^E\\.d\\.r\\..*"));
+        cedolino.setPagaBase(extractValueFromNextLine(text, "(?i)^PAGA BASE.*"));
+        cedolino.setContingenza(extractValueFromNextLine(text, "(?i)^CONTING\\..*"));
+        cedolino.setSuperminimo(extractValueFromNextLine(text, "(?i)^SUP\\.ASS\\..*"));
+        cedolino.setTerzoElemento(extractValueFromNextLine(text, "(?i)^3'ELEMEN\\..*"));
+        cedolino.setStraordinarioForfetizzato(extractValueFromNextLine(text, "(?i)^Str\\.Forf\\..*"));
+        cedolino.setEdr(extractValueFromNextLine(text, "(?i)^E\\.d\\.r\\..*"));
 
         // 2.5 Totali Mensili Stampati
         Matcher mTot = Pattern.compile("([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s*\\n\\s*([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s+Residuo AP", Pattern.CASE_INSENSITIVE).matcher(text);
@@ -52,9 +52,9 @@ public class PdfParserService {
         }
 
         // 3. Imponibili del MESE e IRPEF netta (Sulla stessa riga)
-        cedolino.setImponibileInps(extractValue(text, "Contributo IVS\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
-        cedolino.setImponibileIrpef(extractValue(text, "Imponibile IRPEF\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
-        cedolino.setIrpefNetta(extractValue(text, "Ritenute IRPEF\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
+        cedolino.setImponibileInps(extractValue(text, "(?i)Contributo IVS\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
+        cedolino.setImponibileIrpef(extractValue(text, "(?i)Imponibile IRPEF\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
+        cedolino.setIrpefNetta(extractValue(text, "(?i)Ritenute IRPEF\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
         
         // 4. Analisi Granulare "VOCI VARIABILI DEL MESE"
         List<VoceCedolino> voci = new ArrayList<>();
@@ -63,7 +63,7 @@ public class PdfParserService {
             String trimmedLine = line.trim();
             
             // Filtra solo le righe che sembrano contenere dati finanziari tabellari o codici
-            if (!trimmedLine.matches("^[\\*\\s]*[A-Z0-9]{5,6}.*") && !trimmedLine.matches("^Quota T\\.F\\.R\\..*")) {
+            if (!trimmedLine.matches("^[\\*\\s]*[A-Z0-9]{5,6}.*") && !trimmedLine.matches("(?i)^Quota T\\.F\\.R\\..*")) {
                 continue; // Non è una riga voce variabile
             }
             
@@ -78,24 +78,30 @@ public class PdfParserService {
             voce.setCedolino(cedolino);
             voce.setImporto(importo);
             
-            // Assegnazione Tipo Voce logica avanzata
-            if (trimmedLine.contains("( )") || trimmedLine.contains("C/Ditta") || trimmedLine.contains("Ticket Restaurant")) {
-                if (trimmedLine.contains("C/Ditta")) voce.setTipo(VoceCedolino.TipoVoce.CARICO_DITTA);
+            String lowerLine = trimmedLine.toLowerCase();
+            
+            // Assegnazione Tipo Voce logica generalizzata e flessibile
+            if (lowerLine.contains("( )") || lowerLine.contains("c/ditta") || lowerLine.contains("ticket") || lowerLine.contains("buon")) {
+                if (lowerLine.contains("c/ditta")) voce.setTipo(VoceCedolino.TipoVoce.CARICO_DITTA);
                 else voce.setTipo(VoceCedolino.TipoVoce.FIGURATIVO);
             } 
-            else if (trimmedLine.matches("^[\\*\\s]*F02[0-9]{3}.*") || trimmedLine.matches("^[\\*\\s]*F0332[0-1].*") || trimmedLine.contains("Quota T.F.R.") || trimmedLine.contains("Ctr.prev.compl.deducib")) {
+            // Voci Informative: F01xxx, F02xxx (Basi, Deduzioni, Detrazioni), TFR
+            else if (trimmedLine.matches("^[\\*\\s]*F0[12][0-9]{3}.*") || trimmedLine.matches("^[\\*\\s]*F0332[0-1].*") || 
+                     lowerLine.contains("t.f.r.") || lowerLine.contains("deducib") || lowerLine.contains("imponibile")) {
                 voce.setTipo(VoceCedolino.TipoVoce.INFORMATIVO);
-                if (trimmedLine.contains("Detrazioni lav.dip")) cedolino.setDetrazioni(importo);
-                if (trimmedLine.contains("Ulteriore detrazione")) cedolino.setUlterioriDetrazioni(importo);
-                if (trimmedLine.contains("IRPEF lorda")) cedolino.setIrpefLorda(importo);
+                if (lowerLine.contains("detrazioni lav.dip")) cedolino.setDetrazioni(importo);
+                if (lowerLine.contains("ulteriore detrazione")) cedolino.setUlterioriDetrazioni(importo);
+                if (lowerLine.contains("irpef lorda")) cedolino.setIrpefLorda(importo);
             }
-            else if (trimmedLine.contains("Contributo IVS") || trimmedLine.contains("CIGS") || trimmedLine.contains("FIS D.Lgs") || 
-                     trimmedLine.contains("Ritenute IRPEF") || trimmedLine.contains("Addizionale") || trimmedLine.contains("Imposta sostitutiva") ||
-                     trimmedLine.contains("Contributo EST") || trimmedLine.contains("Arrotond") || trimmedLine.contains("Contr. base  FONTE")) {
+            // Trattenute: F03xxx (IRPEF), F09xxx (Addizionali), e parole chiave comuni per trattenute
+            else if (trimmedLine.matches("^[\\*\\s]*F03[0-9]{3}.*") || trimmedLine.matches("^[\\*\\s]*F09[0-9]{3}.*") ||
+                     lowerLine.contains("trattenut") || lowerLine.contains("contribut") || lowerLine.contains("cigs") || 
+                     lowerLine.contains("fis d.lgs") || lowerLine.contains("ritenut") || lowerLine.contains("addizional") || 
+                     lowerLine.contains("imposta") || lowerLine.contains("arrotond") || lowerLine.contains("recuper")) {
                 voce.setTipo(VoceCedolino.TipoVoce.TRATTENUTA);
             }
+            // Il resto (Z00001, Straordinari, Premi, Rimborsi, Ferie Godute) è COMPETENZA
             else {
-                // Il resto, se non rientra, è considerata una competenza (es. Z00001 Retribuzione, Straordinari)
                 voce.setTipo(VoceCedolino.TipoVoce.COMPETENZA);
             }
             
