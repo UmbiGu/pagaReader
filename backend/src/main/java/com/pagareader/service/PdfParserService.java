@@ -105,20 +105,24 @@ public class PdfParserService {
         
         cedolino.setVoci(voci);
         
-        // Ricalcolo Totali
+        // Ricalcolo Totali Granulari
         Double totComp = 0.0;
         Double totTrat = 0.0;
         Double arrotondamento = 0.0;
-        
+
         for(VoceCedolino v : voci) {
             if (v.getTipo() == VoceCedolino.TipoVoce.COMPETENZA) totComp += v.getImporto();
             if (v.getTipo() == VoceCedolino.TipoVoce.TRATTENUTA) totTrat += v.getImporto();
-            if (v.getDescrizione().contains("Arrotond")) arrotondamento = v.getImporto(); // Semplificazione per arrotondamento
+            if (v.getDescrizione().contains("Arrotond")) arrotondamento = v.getImporto();
         }
-        
+
         cedolino.setTotaleCompetenzeCalcolato(totComp);
         cedolino.setTotaleTrattenuteCalcolato(totTrat);
         cedolino.setArrotondamento(arrotondamento);
+
+        // Assegna i totali principali alla versione calcolata (è la più affidabile)
+        cedolino.setTotaleCompetenze(totComp);
+        cedolino.setTotaleTrattenute(totTrat);
 
         // 5. Contatori Ferie, Ex-Fest e ROL e FONTE
         for (String line : lines) {
