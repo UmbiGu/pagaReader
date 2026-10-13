@@ -198,6 +198,8 @@ export class ChartsComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.isBrowser = isPlatformBrowser(this.platformId);
+    
     this.payslipService.getPayslips().subscribe(data => {
       this.payslips = data;
       this.availableYears = [...new Set(data.map(p => p.year))].sort((a, b) => b - a);
