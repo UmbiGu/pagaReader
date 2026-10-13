@@ -1,12 +1,15 @@
 package com.pagareader.service;
 
 import com.pagareader.entity.Cedolino;
+import com.pagareader.entity.VoceCedolino;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,7 +25,7 @@ public class PdfParserService {
 
         Cedolino cedolino = new Cedolino();
         
-        // 1. Month and Year (e.g. Settembre 2026)
+        // 1. Month and Year
         Pattern datePattern = Pattern.compile("(?i)(Gennaio|Febbraio|Marzo|Aprile|Maggio|Giugno|Luglio|Agosto|Settembre|Ottobre|Novembre|Dicembre)\\s+(20[2-9]\\d)");
         Matcher mDate = datePattern.matcher(text);
         if (mDate.find()) {
@@ -33,8 +36,7 @@ public class PdfParserService {
             cedolino.setAnno(2025);
         }
 
-        // 2. Competenze Fisse (Paga base, ecc.)
-        // Nei PDF Zucchetti le voci "PAGA BASE", "CONTING." appaiono su una riga e il valore esatto in quella successiva
+        // 2. Competenze Fisse
         cedolino.setPagaBase(extractValueFromNextLine(text, "^PAGA BASE.*"));
         cedolino.setContingenza(extractValueFromNextLine(text, "^CONTING\\..*"));
         cedolino.setSuperminimo(extractValueFromNextLine(text, "^SUP\\.ASS\\..*"));
@@ -42,12 +44,7 @@ public class PdfParserService {
         cedolino.setStraordinarioForfetizzato(extractValueFromNextLine(text, "^Str\\.Forf\\..*"));
         cedolino.setEdr(extractValueFromNextLine(text, "^E\\.d\\.r\\..*"));
 
-        // 2.5 Totali Mensili (Totale Competenze, Totale Trattenute)
-        // Nel layout Zucchetti i totali vengono stampati spesso subito prima della riga "Residuo AP Goduto Saldo Maturato"
-        // in due righe separate: prima le trattenute, poi le competenze.
-        // Esempio:
-        // 1.195,56
-        // 4.418,37 Residuo AP
+        // 2.5 Totali Mensili Stampati
         Matcher mTot = Pattern.compile("([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s*\\n\\s*([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s+Residuo AP", Pattern.CASE_INSENSITIVE).matcher(text);
         if (mTot.find()) {
             cedolino.setTotaleTrattenute(parseItalianNumber(mTot.group(1)));
@@ -55,18 +52,73 @@ public class PdfParserService {
         }
 
         // 3. Imponibili del MESE e IRPEF netta (Sulla stessa riga)
-        // Evitiamo i progressivi di fine pagina (Imp. INPS, Imp. IRPEF) puntando alle voci esplicite mensili.
-        // Cerca: "* Z00000 Contributo IVS 2.154,00 %9,19000 197,96" -> 2.154,00
         cedolino.setImponibileInps(extractValue(text, "Contributo IVS\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
-        // Cerca: "F02000 Imponibile IRPEF 1.798,16"
         cedolino.setImponibileIrpef(extractValue(text, "Imponibile IRPEF\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
-        // Cerca: "F03020 Ritenute IRPEF 152,25"
         cedolino.setIrpefNetta(extractValue(text, "Ritenute IRPEF\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
         
-        // 4. Ferie, Ex-Fest e ROL
-        // L'ultima colonna prima della dicitura "ORE" rappresenta sempre il Saldo Attuale
-        String[] allLines = text.split("\n");
-        for (String line : allLines) {
+        // 4. Analisi Granulare "VOCI VARIABILI DEL MESE"
+        List<VoceCedolino> voci = new ArrayList<>();
+        String[] lines = text.split("\n");
+        for (String line : lines) {
+            String trimmedLine = line.trim();
+            
+            // Filtra solo le righe che sembrano contenere dati finanziari tabellari o codici
+            if (!trimmedLine.matches("^[\\*\\s]*[A-Z0-9]{5,6}.*") && !trimmedLine.matches("^Quota T\\.F\\.R\\..*")) {
+                continue; // Non è una riga voce variabile
+            }
+            
+            // Estrazione del valore finale della riga (sia esso competenza, trattenuta o figurativo)
+            Matcher mValue = Pattern.compile("([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})$").matcher(trimmedLine);
+            if (!mValue.find()) continue;
+            
+            Double importo = parseItalianNumber(mValue.group(1));
+            String rawLine = trimmedLine.replace(mValue.group(1), "").trim();
+            
+            VoceCedolino voce = new VoceCedolino();
+            voce.setCedolino(cedolino);
+            voce.setImporto(importo);
+            
+            // Assegnazione Tipo Voce logica avanzata
+            if (trimmedLine.contains("( )") || trimmedLine.contains("C/Ditta") || trimmedLine.contains("Ticket Restaurant")) {
+                if (trimmedLine.contains("C/Ditta")) voce.setTipo(VoceCedolino.TipoVoce.CARICO_DITTA);
+                else voce.setTipo(VoceCedolino.TipoVoce.FIGURATIVO);
+            } 
+            else if (trimmedLine.matches("^[\\*\\s]*F02[0-9]{3}.*") || trimmedLine.matches("^[\\*\\s]*F0332[0-1].*") || trimmedLine.contains("Quota T.F.R.") || trimmedLine.contains("Ctr.prev.compl.deducib")) {
+                voce.setTipo(VoceCedolino.TipoVoce.INFORMATIVO);
+            }
+            else if (trimmedLine.contains("Contributo IVS") || trimmedLine.contains("CIGS") || trimmedLine.contains("FIS D.Lgs") || 
+                     trimmedLine.contains("Ritenute IRPEF") || trimmedLine.contains("Addizionale") || trimmedLine.contains("Imposta sostitutiva") ||
+                     trimmedLine.contains("Contributo EST") || trimmedLine.contains("Arrotond") || trimmedLine.contains("Contr. base  FONTE")) {
+                voce.setTipo(VoceCedolino.TipoVoce.TRATTENUTA);
+            }
+            else {
+                // Il resto, se non rientra, è considerata una competenza (es. Z00001 Retribuzione, Straordinari)
+                voce.setTipo(VoceCedolino.TipoVoce.COMPETENZA);
+            }
+            
+            voce.setDescrizione(rawLine);
+            voci.add(voce);
+        }
+        
+        cedolino.setVoci(voci);
+        
+        // Ricalcolo Totali
+        Double totComp = 0.0;
+        Double totTrat = 0.0;
+        Double arrotondamento = 0.0;
+        
+        for(VoceCedolino v : voci) {
+            if (v.getTipo() == VoceCedolino.TipoVoce.COMPETENZA) totComp += v.getImporto();
+            if (v.getTipo() == VoceCedolino.TipoVoce.TRATTENUTA) totTrat += v.getImporto();
+            if (v.getDescrizione().contains("Arrotond")) arrotondamento = v.getImporto(); // Semplificazione per arrotondamento
+        }
+        
+        cedolino.setTotaleCompetenzeCalcolato(totComp);
+        cedolino.setTotaleTrattenuteCalcolato(totTrat);
+        cedolino.setArrotondamento(arrotondamento);
+
+        // 5. Contatori Ferie, Ex-Fest e ROL e FONTE
+        for (String line : lines) {
             String lowerLine = line.trim().toLowerCase();
             if (lowerLine.startsWith("ferie")) {
                 Matcher m = Pattern.compile("([\\d\\.,]+)\\s+ORE", Pattern.CASE_INSENSITIVE).matcher(line);
@@ -78,7 +130,6 @@ public class PdfParserService {
                 Matcher m = Pattern.compile("([\\d\\.,]+)\\s+ORE", Pattern.CASE_INSENSITIVE).matcher(line);
                 if (m.find()) cedolino.setRolSaldo(parseItalianNumber(m.group(1)));
             } else if (lowerLine.contains("fonte su retr.tfr")) {
-                // Estrazione Fondo Pensione Complementare FONTE
                 Matcher m = Pattern.compile("([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})$").matcher(line.trim());
                 if (m.find()) {
                     if (lowerLine.contains("c/ditta")) {
@@ -90,34 +141,38 @@ public class PdfParserService {
             }
         }
         
-        // 5. Netto Mese
-        // Isoliamo il Netto come l'ultimo numero a due decimali in fondo al documento
-        Double netto = 0.0;
-        String[] lines = text.split("\n");
+        // 6. Netto Mese Definitivo
+        // Use mathematical formula: Totale Competenze - Totale Trattenute
+        // We still fall back to PDF extraction if the calculation is too far off.
+        Double calcNetto = totComp - totTrat;
+        
+        Double extractedNetto = 0.0;
         for (int i = lines.length - 1; i >= 0; i--) {
             String line = lines[i].trim();
-            // Match exact Italian currency format: e.g. 3.223,00 or 1.697,00
             if (line.matches("^\\d{1,3}(\\.\\d{3})*,\\d{2}$")) {
                 double val = parseItalianNumber(line);
-                if (val > 100) { // Ignore small rounding numbers like 0,19
-                    netto = val;
+                if (val > 100) { 
+                    extractedNetto = val;
                     break;
                 }
-            }
-            // Sometimes it's appended with a trailing char or currency sign
-            else if (line.matches("^\\d{1,3}(\\.\\d{3})*,\\d{2}.*")) {
+            } else if (line.matches("^\\d{1,3}(\\.\\d{3})*,\\d{2}.*")) {
                 Matcher m = Pattern.compile("^(\\d{1,3}(\\.\\d{3})*,\\d{2})").matcher(line);
                 if (m.find()) {
                     double val = parseItalianNumber(m.group(1));
                     if (val > 100) {
-                        netto = val;
+                        extractedNetto = val;
                         break;
                     }
                 }
             }
         }
         
-        cedolino.setNettoMese(netto);
+        // Always prefer the exact calculation if it's within a reasonable rounding margin
+        if (Math.abs(calcNetto - extractedNetto) <= 2.0) {
+             cedolino.setNettoMese(calcNetto);
+        } else {
+             cedolino.setNettoMese(extractedNetto); // Fallback to raw parsed text
+        }
 
         return cedolino;
     }
@@ -127,7 +182,6 @@ public class PdfParserService {
         for (int i = 0; i < lines.length - 1; i++) {
             if (lines[i].trim().matches("(?i)" + keywordRegex)) {
                 String nextLine = lines[i+1].trim();
-                // Extract just the number starting the line
                 Matcher m = Pattern.compile("^([\\d\\.,]+)").matcher(nextLine);
                 if (m.find()) {
                     return parseItalianNumber(m.group(1));

@@ -12,6 +12,26 @@ public class Cedolino {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // --- VOCI VARIABILI DEL MESE ---
+    @OneToMany(mappedBy = "cedolino", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<VoceCedolino> voci = new java.util.ArrayList<>();
+
+    private Double totaleCompetenzeCalcolato = 0.0;
+    private Double totaleTrattenuteCalcolato = 0.0;
+    private Double arrotondamento = 0.0;
+
+    public java.util.List<VoceCedolino> getVoci() { return voci; }
+    public void setVoci(java.util.List<VoceCedolino> voci) { this.voci = voci; }
+    
+    public Double getTotaleCompetenzeCalcolato() { return totaleCompetenzeCalcolato; }
+    public void setTotaleCompetenzeCalcolato(Double totaleCompetenzeCalcolato) { this.totaleCompetenzeCalcolato = totaleCompetenzeCalcolato; }
+    
+    public Double getTotaleTrattenuteCalcolato() { return totaleTrattenuteCalcolato; }
+    public void setTotaleTrattenuteCalcolato(Double totaleTrattenuteCalcolato) { this.totaleTrattenuteCalcolato = totaleTrattenuteCalcolato; }
+    
+    public Double getArrotondamento() { return arrotondamento; }
+    public void setArrotondamento(Double arrotondamento) { this.arrotondamento = arrotondamento; }
+
     // --- DATI ANAGRAFICI E AZIENDALI ---
     private String azienda;
     private String nomeDipendente;
