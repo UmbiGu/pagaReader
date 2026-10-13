@@ -1,0 +1,22 @@
+# Node.js
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Maven/Java
+backend/target/
+*.jar
+*.war
+*.class
+
+# Database and Uploads
+backend/pagareader.db
+backend/src/main/resources/uploads/
+*.pdf
+
+# IDEs and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
