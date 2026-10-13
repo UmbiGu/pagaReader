@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { ThemeService } from '../../services/theme.service';
 import { AuthService } from '../../services/auth.service';
 
@@ -43,9 +43,9 @@ import { AuthService } from '../../services/auth.service';
           <div class="d-flex align-items-center ms-auto">
             
             <!-- App Switcher -->
-            <div class="form-check form-switch me-3 d-none d-md-flex align-items-center" title="Switch to CheckReader (Coming Soon)">
-              <input class="form-check-input me-2" type="checkbox" role="switch" id="appSwitcher" disabled>
-              <label class="form-check-label text-muted small fw-bold" for="appSwitcher"><i class="bi bi-ui-checks-grid me-1"></i> CheckReader</label>
+            <div class="form-check form-switch me-3 d-none d-md-flex align-items-center" title="Switch to InvestimentiReader">
+              <input class="form-check-input me-2" type="checkbox" role="switch" id="appSwitcher" [checked]="isInvestimentiRoute()" (change)="toggleApp()">
+              <label class="form-check-label text-muted small fw-bold" for="appSwitcher"><i class="bi bi-graph-up-arrow me-1"></i> InvestimentiReader</label>
             </div>
 
             <button class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center p-2 me-2"
@@ -66,10 +66,23 @@ import { AuthService } from '../../services/auth.service';
 export class NavbarComponent implements OnInit {
   themeService = inject(ThemeService);
   authService = inject(AuthService);
+  private router = inject(Router);
 
   isLoggedIn$ = this.authService.isLoggedIn$;
 
   ngOnInit() {
+  }
+
+  isInvestimentiRoute(): boolean {
+    return this.router.url.includes('/investimenti');
+  }
+
+  toggleApp() {
+    if (this.isInvestimentiRoute()) {
+      this.router.navigate(['/']); // Switch back to PagaReader (Home)
+    } else {
+      this.router.navigate(['/investimenti']); // Switch to InvestimentiReader
+    }
   }
 
   toggleTheme() {
