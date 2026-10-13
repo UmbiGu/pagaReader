@@ -1,6 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, PLATFORM_ID } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, of } from 'rxjs';
+import { isPlatformBrowser } from '@angular/common';
 import { Payslip } from '../models/payslip.model';
 
 @Injectable({
@@ -8,9 +9,13 @@ import { Payslip } from '../models/payslip.model';
 })
 export class PayslipService {
   private http = inject(HttpClient);
+  private platformId = inject(PLATFORM_ID);
   private apiUrl = 'https://pagareader-1.onrender.com/api/cedolini';
 
   getPayslips(): Observable<Payslip[]> {
+    if (!isPlatformBrowser(this.platformId)) {
+      return of([]); // Return empty array during SSR build to prevent 403 Forbidden
+    }
     return this.http.get<any[]>(this.apiUrl).pipe(
       map(data => data.map(this.mapToFrontendModel))
     );
