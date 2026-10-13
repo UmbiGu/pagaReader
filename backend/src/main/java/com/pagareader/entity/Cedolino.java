@@ -10,6 +10,11 @@ public class Cedolino {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private AppUser user;
+
     // --- VOCI VARIABILI DEL MESE ---
     @OneToMany(mappedBy = "cedolino", cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<VoceCedolino> voci = new java.util.ArrayList<>();
@@ -78,6 +83,9 @@ public class Cedolino {
     // --- GETTERS E SETTERS ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
+    public AppUser getUser() { return user; }
+    public void setUser(AppUser user) { this.user = user; }
 
     public String getAzienda() { return azienda; }
     public void setAzienda(String azienda) { this.azienda = azienda; }
