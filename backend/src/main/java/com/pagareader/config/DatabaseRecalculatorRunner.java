@@ -26,9 +26,21 @@ public class DatabaseRecalculatorRunner implements CommandLineRunner {
         Optional<AppUser> existingUser = userRepository.findByEmail("test@pagareader.com");
         if (existingUser.isPresent()) {
             adminUser = existingUser.get();
+            boolean needsUpdate = false;
+            
             // Ensure existing test user is upgraded to ADMIN if running from previous DB state
             if (adminUser.getRole() != AppUser.Role.ADMIN) {
                 adminUser.setRole(AppUser.Role.ADMIN);
+                needsUpdate = true;
+            }
+            // Force reset password in case it was corrupted or saved in plain text earlier
+            if (!passwordEncoder.matches("password123", adminUser.getPassword())) {
+                adminUser.setPassword(passwordEncoder.encode("password123"));
+                needsUpdate = true;
+                System.out.println("-> Admin password resynced.");
+            }
+            
+            if (needsUpdate) {
                 userRepository.save(adminUser);
             }
         } else {
