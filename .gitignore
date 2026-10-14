@@ -11,6 +11,9 @@ backend/target/
 
 # Database and Uploads
 backend/pagareader.db
+backend/data/
+*.mv.db
+*.trace.db
 backend/src/main/resources/uploads/
 *.pdf
 

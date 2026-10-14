@@ -5,6 +5,7 @@ import { ChartsComponent } from './components/charts/charts.component';
 import { AuthComponent } from './components/auth/auth.component';
 import { UsersComponent } from './components/users/users.component';
 import { InvestimentiComponent } from './components/investimenti/investimenti.component';
+import { MargineReadingComponent } from './components/margine-reading/margine-reading.component';
 import { authGuard } from './guards/auth.guard';
 import { adminGuard } from './guards/admin.guard';
 
@@ -14,6 +15,7 @@ export const routes: Routes = [
   { path: 'settings', component: PayslipListComponent, canActivate: [authGuard] },
   { path: 'charts', component: ChartsComponent, canActivate: [authGuard] },
   { path: 'investimenti', component: InvestimentiComponent, canActivate: [authGuard] },
+  { path: 'margine-reading', component: MargineReadingComponent, canActivate: [authGuard] },
   { path: 'admin/users', component: UsersComponent, canActivate: [authGuard, adminGuard] },
   { path: '**', redirectTo: '' }
 ];

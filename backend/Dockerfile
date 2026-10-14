@@ -12,6 +12,8 @@ WORKDIR /app
 # Copy the built jar from the build stage
 COPY --from=build /app/target/backend-0.0.1-SNAPSHOT.jar app.jar
 
+ENV SPRING_PROFILES_ACTIVE=prod
+
 # Expose the port the app runs on
 EXPOSE 8080
 

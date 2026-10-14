@@ -39,10 +39,30 @@ public class Cedolino {
     private String azienda;
     private String nomeDipendente;
     private String codiceFiscale;
+    private String matricola;
+    private String qualifica;
+    private String livello;
+    private String mansione;
+    private String ccnl;
+    private String cnel;
+    private String dataAssunzione;
+    private String dataNascita;
+    private String scattiAnzianita;
+
+    // --- PROGRESSIVI ANNUI E TFR ---
+    private Double imponibileInpsProgressivo = 0.0;
+    private Double imponibileInailProgressivo = 0.0;
+    private Double imponibileIrpefProgressivo = 0.0;
+    private Double irpefPagataProgressiva = 0.0;
+    private Double tfrMese = 0.0;
 
     // --- PERIODO ---
     private Integer mese;
     private Integer anno;
+    private Boolean aggiuntiva = false;
+
+    public Boolean getAggiuntiva() { return aggiuntiva != null && aggiuntiva; }
+    public void setAggiuntiva(Boolean aggiuntiva) { this.aggiuntiva = aggiuntiva; }
 
     // --- COMPETENZE FISSE ---
     private Double pagaBase = 0.0;
@@ -74,10 +94,14 @@ public class Cedolino {
 
     // --- CONTATORI EX-FESTIVITA' ---
     private Double exFestResidueAP = 0.0;
+    private Double exFestMaturate = 0.0;
+    private Double exFestGodute = 0.0;
     private Double exFestSaldo = 0.0;
 
     // --- CONTATORI ROL ---
     private Double rolResiduoAP = 0.0;
+    private Double rolMaturate = 0.0;
+    private Double rolGodute = 0.0;
     private Double rolSaldo = 0.0;
 
     // --- GETTERS E SETTERS ---
@@ -93,6 +117,35 @@ public class Cedolino {
     public void setNomeDipendente(String nomeDipendente) { this.nomeDipendente = nomeDipendente; }
     public String getCodiceFiscale() { return codiceFiscale; }
     public void setCodiceFiscale(String codiceFiscale) { this.codiceFiscale = codiceFiscale; }
+    public String getMatricola() { return matricola; }
+    public void setMatricola(String matricola) { this.matricola = matricola; }
+    public String getQualifica() { return qualifica; }
+    public void setQualifica(String qualifica) { this.qualifica = qualifica; }
+    public String getLivello() { return livello; }
+    public void setLivello(String livello) { this.livello = livello; }
+    public String getMansione() { return mansione; }
+    public void setMansione(String mansione) { this.mansione = mansione; }
+    public String getCcnl() { return ccnl; }
+    public void setCcnl(String ccnl) { this.ccnl = ccnl; }
+    public String getCnel() { return cnel; }
+    public void setCnel(String cnel) { this.cnel = cnel; }
+    public String getDataAssunzione() { return dataAssunzione; }
+    public void setDataAssunzione(String dataAssunzione) { this.dataAssunzione = dataAssunzione; }
+    public String getDataNascita() { return dataNascita; }
+    public void setDataNascita(String dataNascita) { this.dataNascita = dataNascita; }
+    public String getScattiAnzianita() { return scattiAnzianita; }
+    public void setScattiAnzianita(String scattiAnzianita) { this.scattiAnzianita = scattiAnzianita; }
+
+    public Double getImponibileInpsProgressivo() { return imponibileInpsProgressivo; }
+    public void setImponibileInpsProgressivo(Double imponibileInpsProgressivo) { this.imponibileInpsProgressivo = imponibileInpsProgressivo; }
+    public Double getImponibileInailProgressivo() { return imponibileInailProgressivo; }
+    public void setImponibileInailProgressivo(Double imponibileInailProgressivo) { this.imponibileInailProgressivo = imponibileInailProgressivo; }
+    public Double getImponibileIrpefProgressivo() { return imponibileIrpefProgressivo; }
+    public void setImponibileIrpefProgressivo(Double imponibileIrpefProgressivo) { this.imponibileIrpefProgressivo = imponibileIrpefProgressivo; }
+    public Double getIrpefPagataProgressiva() { return irpefPagataProgressiva; }
+    public void setIrpefPagataProgressiva(Double irpefPagataProgressiva) { this.irpefPagataProgressiva = irpefPagataProgressiva; }
+    public Double getTfrMese() { return tfrMese; }
+    public void setTfrMese(Double tfrMese) { this.tfrMese = tfrMese; }
 
     public Integer getMese() { return mese; }
     public void setMese(Integer mese) { this.mese = mese; }
@@ -145,11 +198,19 @@ public class Cedolino {
 
     public Double getExFestResidueAP() { return exFestResidueAP; }
     public void setExFestResidueAP(Double exFestResidueAP) { this.exFestResidueAP = exFestResidueAP; }
+    public Double getExFestMaturate() { return exFestMaturate; }
+    public void setExFestMaturate(Double exFestMaturate) { this.exFestMaturate = exFestMaturate; }
+    public Double getExFestGodute() { return exFestGodute; }
+    public void setExFestGodute(Double exFestGodute) { this.exFestGodute = exFestGodute; }
     public Double getExFestSaldo() { return exFestSaldo; }
     public void setExFestSaldo(Double exFestSaldo) { this.exFestSaldo = exFestSaldo; }
 
     public Double getRolResiduoAP() { return rolResiduoAP; }
     public void setRolResiduoAP(Double rolResiduoAP) { this.rolResiduoAP = rolResiduoAP; }
+    public Double getRolMaturate() { return rolMaturate; }
+    public void setRolMaturate(Double rolMaturate) { this.rolMaturate = rolMaturate; }
+    public Double getRolGodute() { return rolGodute; }
+    public void setRolGodute(Double rolGodute) { this.rolGodute = rolGodute; }
     public Double getRolSaldo() { return rolSaldo; }
     public void setRolSaldo(Double rolSaldo) { this.rolSaldo = rolSaldo; }
 

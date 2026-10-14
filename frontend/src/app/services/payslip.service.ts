@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, of } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
 import { Payslip } from '../models/payslip.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -10,7 +11,7 @@ import { Payslip } from '../models/payslip.model';
 export class PayslipService {
   private http = inject(HttpClient);
   private platformId = inject(PLATFORM_ID);
-  private apiUrl = 'https://pagareader-1.onrender.com/api/cedolini';
+  private apiUrl = `${environment.apiUrl}/cedolini`;
 
   getPayslips(): Observable<Payslip[]> {
     if (!isPlatformBrowser(this.platformId)) {
@@ -47,9 +48,21 @@ export class PayslipService {
   private mapToFrontendModel(b: any): Payslip {
     return {
       id: b.id,
+      azienda: b.azienda,
       employeeName: b.nomeDipendente,
+      codiceFiscale: b.codiceFiscale,
+      matricola: b.matricola,
+      qualifica: b.qualifica,
+      livello: b.livello,
+      mansione: b.mansione,
+      ccnl: b.ccnl,
+      cnel: b.cnel,
+      dataAssunzione: b.dataAssunzione,
+      dataNascita: b.dataNascita,
+      scattiAnzianita: b.scattiAnzianita,
       month: b.mese,
       year: b.anno,
+      aggiuntiva: !!b.aggiuntiva,
       baseSalary: b.pagaBase || 0,
       contingency: b.contingenza || 0,
       superminimo: b.superminimo || 0,
@@ -66,13 +79,22 @@ export class PayslipService {
       detrazioni: b.detrazioni || 0,
       ulterioriDetrazioni: b.ulterioriDetrazioni || 0,
       netSalary: b.nettoMese || 0,
+      imponibileInpsProgressivo: b.imponibileInpsProgressivo || 0,
+      imponibileInailProgressivo: b.imponibileInailProgressivo || 0,
+      imponibileIrpefProgressivo: b.imponibileIrpefProgressivo || 0,
+      irpefPagataProgressiva: b.irpefPagataProgressiva || 0,
+      tfrMese: b.tfrMese || 0,
       ferieResidueAP: b.ferieResidueAP || 0,
       ferieMaturate: b.ferieMaturate || 0,
       ferieGodute: b.ferieGodute || 0,
       remainingHolidays: b.ferieSaldo || 0,
       exFestResidueAP: b.exFestResidueAP || 0,
+      exFestMaturate: b.exFestMaturate || 0,
+      exFestGodute: b.exFestGodute || 0,
       remainingExFest: b.exFestSaldo || 0,
       rolResiduoAP: b.rolResiduoAP || 0,
+      rolMaturate: b.rolMaturate || 0,
+      rolGodute: b.rolGodute || 0,
       remainingRol: b.rolSaldo || 0,
       fonteDipendente: b.fonteDipendente || 0,
       fonteAzienda: b.fonteAzienda || 0,
@@ -81,8 +103,12 @@ export class PayslipService {
     };
   }
 
-  getMonthName(monthNumber: number): string {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return months[monthNumber - 1] || "N/A";
+  getMonthName(monthNumber: number, isAggiuntiva?: boolean): string {
+    const months = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
+    const base = months[monthNumber - 1] || "N/A";
+    if (!isAggiuntiva) return base;
+    if (monthNumber === 12) return `${base} (13ª)`;
+    if (monthNumber === 6) return `${base} (14ª)`;
+    return `${base} (Agg.)`;
   }
 }

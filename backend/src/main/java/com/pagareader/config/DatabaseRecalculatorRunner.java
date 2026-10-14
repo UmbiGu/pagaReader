@@ -2,31 +2,49 @@ package com.pagareader.config;
 
 import com.pagareader.entity.AppUser;
 import com.pagareader.repository.AppUserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 @Component
 public class DatabaseRecalculatorRunner implements CommandLineRunner {
 
-    @Autowired
-    private AppUserRepository userRepository;
+    private static final Logger log = LoggerFactory.getLogger(DatabaseRecalculatorRunner.class);
 
-    @Value("${app.admin.email}")
-    private String adminEmail;
+    private final AppUserRepository userRepository;
+    private final Environment environment;
+    private final String adminEmail;
+    private final String adminPassword;
+    private final String datasourceUrl;
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    @Value("${app.admin.password}")
-    private String adminPassword;
-
-    private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    public DatabaseRecalculatorRunner(
+            AppUserRepository userRepository,
+            Environment environment,
+            @Value("${app.admin.email}") String adminEmail,
+            @Value("${app.admin.password}") String adminPassword,
+            @Value("${spring.datasource.url:N/A}") String datasourceUrl) {
+        this.userRepository = userRepository;
+        this.environment = environment;
+        this.adminEmail = adminEmail;
+        this.adminPassword = adminPassword;
+        this.datasourceUrl = datasourceUrl;
+        this.passwordEncoder = new BCryptPasswordEncoder();
+    }
 
     @Override
     public void run(String... args) throws Exception {
-        System.out.println("====== SYSTEM STARTUP: PREPARING DATABASE & USERS ======");
+        log.info("=======================================================================");
+        log.info(">>> ACTIVE PROFILES:    {}", Arrays.toString(environment.getActiveProfiles()));
+        log.info(">>> DATABASE CONNECTED: {}", datasourceUrl);
+        log.info("=======================================================================");
         
         // 1. Seed Default Admin User
         final AppUser adminUser;
@@ -35,16 +53,16 @@ public class DatabaseRecalculatorRunner implements CommandLineRunner {
             adminUser = existingUser.get();
             boolean needsUpdate = false;
             
-            // Ensure existing test user is upgraded to ADMIN if running from previous DB state
+            // Ensure existing test user has ADMIN role
             if (adminUser.getRole() != AppUser.Role.ADMIN) {
                 adminUser.setRole(AppUser.Role.ADMIN);
                 needsUpdate = true;
             }
-            // Force reset password in case it was corrupted or saved in plain text earlier
+            // Resync password if changed
             if (!passwordEncoder.matches(adminPassword, adminUser.getPassword())) {
                 adminUser.setPassword(passwordEncoder.encode(adminPassword));
                 needsUpdate = true;
-                System.out.println("-> Admin password resynced.");
+                log.info("-> Admin password resynced.");
             }
             
             if (needsUpdate) {
@@ -56,9 +74,9 @@ public class DatabaseRecalculatorRunner implements CommandLineRunner {
             newUser.setPassword(passwordEncoder.encode(adminPassword));
             newUser.setRole(AppUser.Role.ADMIN);
             adminUser = userRepository.save(newUser);
-            System.out.println("-> Seeded default admin user: " + adminEmail);
+            log.info("-> Seeded default admin user: {}", adminEmail);
         }
         
-        System.out.println("====== STARTUP COMPLETATO CON SUCCESSO ======");
+        log.info("====== STARTUP COMPLETATO CON SUCCESSO ======");
     }
 }

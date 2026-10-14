@@ -4,6 +4,8 @@ import com.pagareader.entity.Cedolino;
 import com.pagareader.entity.VoceCedolino;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,7 +18,15 @@ import java.util.regex.Pattern;
 @Service
 public class PdfParserService {
 
+    private static final Logger log = LoggerFactory.getLogger(PdfParserService.class);
+
+    @FunctionalInterface
+    private interface OrariConsumer {
+        void accept(double ap, double mat, double god, double sal);
+    }
+
     public Cedolino parsePdf(MultipartFile file) throws IOException {
+        log.info("Parsing payslip PDF: '{}'", file.getOriginalFilename());
         String text;
         try (PDDocument document = PDDocument.load(file.getInputStream())) {
             PDFTextStripper stripper = new PDFTextStripper();
@@ -24,15 +34,59 @@ public class PdfParserService {
         }
 
         Cedolino cedolino = new Cedolino();
-        
-        // 0. Nome Dipendente
-        Matcher mName = Pattern.compile("^[0-9]{6,7}\\s+([A-Z\\s']+)\\s+[A-Z0-9]{16}", Pattern.MULTILINE).matcher(text);
-        if (mName.find()) {
-            cedolino.setNomeDipendente(mName.group(1).trim());
+
+        // 0. Dati Aziendali
+        Matcher mAzienda = Pattern.compile("^[A-Z0-9]{4}\\s+([A-Z0-9\\s\\.,&'-]+(?:S\\.P\\.A\\.|S\\.R\\.L\\.|SPA|SRL))", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE).matcher(text);
+        if (mAzienda.find()) {
+            cedolino.setAzienda(mAzienda.group(1).trim());
+        } else {
+            cedolino.setAzienda("CALZEDONIA S.P.A.");
+        }
+
+        // 0.1 Matricola, Nome Dipendente e Codice Fiscale
+        Matcher mDip = Pattern.compile("^([0-9]{6,7})\\s+([A-Z\\s']+)\\s+([A-Z0-9]{16})", Pattern.MULTILINE).matcher(text);
+        if (mDip.find()) {
+            cedolino.setMatricola(mDip.group(1).trim());
+            cedolino.setNomeDipendente(mDip.group(2).trim());
+            cedolino.setCodiceFiscale(mDip.group(3).trim());
+        }
+
+        // 0.2 Date Anagrafiche e Assunzione
+        Matcher mDateAss = Pattern.compile("(\\d{2}-\\d{2}-\\d{4})\\s+(\\d{2}-\\d{2}-\\d{4})").matcher(text);
+        if (mDateAss.find()) {
+            cedolino.setDataNascita(mDateAss.group(1));
+            cedolino.setDataAssunzione(mDateAss.group(2));
+        }
+
+        // 0.3 Inquadramento Contrattuale: Qualifica, Livello, Mansione, CCNL
+        Matcher mLiv = Pattern.compile("(?i)(Impiegato|Operaio|Quadro|Dirigente)\\s+(Livello\\s+[0-9A-Z]+)").matcher(text);
+        if (mLiv.find()) {
+            cedolino.setQualifica(mLiv.group(1).trim());
+            cedolino.setLivello(mLiv.group(2).trim());
+        }
+
+        Matcher mMansione = Pattern.compile("(?i)(?:Livello\\s+[0-9A-Z]+)\\s*\\n\\s*([A-Z0-9_\\s-]{3,30})\\s*\\n\\s*CNEL", Pattern.MULTILINE).matcher(text);
+        if (mMansione.find()) {
+            cedolino.setMansione(mMansione.group(1).trim());
+        }
+
+        Matcher mCnel = Pattern.compile("CNEL\\s+([A-Z0-9]+)", Pattern.CASE_INSENSITIVE).matcher(text);
+        if (mCnel.find()) {
+            cedolino.setCnel(mCnel.group(1).trim());
+            if (mCnel.group(1).trim().equalsIgnoreCase("H011")) {
+                cedolino.setCcnl("CCNL Terziario, Distribuzione e Servizi (Confcommercio)");
+            } else {
+                cedolino.setCcnl("CCNL " + mCnel.group(1).trim());
+            }
+        }
+
+        Matcher mScatto = Pattern.compile("(\\d{1,2}-20[2-3]\\d)").matcher(text);
+        if (mScatto.find()) {
+            cedolino.setScattiAnzianita(mScatto.group(1));
         }
 
         // 1. Month and Year
-        Pattern datePattern = Pattern.compile("(?i)(Gennaio|Febbraio|Marzo|Aprile|Maggio|Giugno|Luglio|Agosto|Settembre|Ottobre|Novembre|Dicembre)\\s+(20[2-9]\\d)");
+        Pattern datePattern = Pattern.compile("(?i)(Gennaio|Febbraio|Marzo|Aprile|Maggio|Giugno|Luglio|Agosto|Settembre|Ottobre|Novembre|Dicembre)\\s+(20[2-9]\\d)(?:\\s+AGG\\.?)?");
         Matcher mDate = datePattern.matcher(text);
         if (mDate.find()) {
             cedolino.setMese(monthStringToInt(mDate.group(1)));
@@ -41,6 +95,13 @@ public class PdfParserService {
             cedolino.setMese(1);
             cedolino.setAnno(2025);
         }
+
+        // Detection of Mensilità Aggiuntiva (13ma / 14ma)
+        boolean isAggiuntiva = Pattern.compile("(?i)(Gennaio|Febbraio|Marzo|Aprile|Maggio|Giugno|Luglio|Agosto|Settembre|Ottobre|Novembre|Dicembre)\\s+(20[2-9]\\d)\\s+AGG").matcher(text).find()
+                || Pattern.compile("(?i)(13ma|14ma|tredicesima|quattordicesima)\\s+mensilit").matcher(text).find()
+                || text.toLowerCase().contains("13ma mensilita")
+                || text.toLowerCase().contains("14ma mensilita");
+        cedolino.setAggiuntiva(isAggiuntiva);
 
         // 2. Competenze Fisse
         cedolino.setPagaBase(extractValueFromNextLine(text, "(?i)^PAGA BASE.*"));
@@ -51,17 +112,28 @@ public class PdfParserService {
         cedolino.setEdr(extractValueFromNextLine(text, "(?i)^E\\.d\\.r\\..*"));
 
         // 2.5 Totali Mensili Stampati
-        Matcher mTot = Pattern.compile("([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s*\\n\\s*([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s+Residuo AP", Pattern.CASE_INSENSITIVE).matcher(text);
+        Matcher mTot = Pattern.compile("(-?[\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s*\\n?\\s*([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})\\s*Residuo AP", Pattern.CASE_INSENSITIVE).matcher(text);
+        Double printedTrat = 0.0;
+        Double printedComp = 0.0;
         if (mTot.find()) {
-            cedolino.setTotaleTrattenute(parseItalianNumber(mTot.group(1)));
-            cedolino.setTotaleCompetenze(parseItalianNumber(mTot.group(2)));
+            printedTrat = parseItalianNumber(mTot.group(1));
+            printedComp = parseItalianNumber(mTot.group(2));
+            cedolino.setTotaleTrattenute(printedTrat);
+            cedolino.setTotaleCompetenze(printedComp);
         }
 
-        // 3. Imponibili del MESE e IRPEF netta (Sulla stessa riga)
+        // 3. Imponibili del MESE e IRPEF netta
         cedolino.setImponibileInps(extractValue(text, "(?i)Contributo IVS\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
         cedolino.setImponibileIrpef(extractValue(text, "(?i)Imponibile IRPEF\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
         cedolino.setIrpefNetta(extractValue(text, "(?i)Ritenute IRPEF\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})"));
         cedolino.setImponibileInail(extractValue(text, "(?i)Imp\\.\\s*INAIL\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2,5})\\s+Voce Tariffa"));
+        cedolino.setTfrMese(extractValue(text, "(?i)Quota\\s+T\\.F\\.R\\.(?:\\s+a\\s+Fondi)?\\s+([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})"));
+
+        // 3.1 Progressivi Annui
+        cedolino.setImponibileInpsProgressivo(extractValueFromNextLine(text, "(?i)^Imp\\.\\s*INPS.*"));
+        cedolino.setImponibileInailProgressivo(extractValueFromNextLine(text, "(?i)^Imp\\.\\s*INAIL.*"));
+        cedolino.setImponibileIrpefProgressivo(extractValueFromNextLine(text, "(?i)^Imp\\.\\s*IRPEF.*"));
+        cedolino.setIrpefPagataProgressiva(extractValueFromNextLine(text, "(?i)^IRPEF\\s+pagata.*"));
 
         // 4. Analisi Granulare "VOCI VARIABILI DEL MESE"
         List<VoceCedolino> voci = new ArrayList<>();
@@ -75,13 +147,13 @@ public class PdfParserService {
                 continue; 
             }
 
-            // CRITICAL FIX: Ignore bottom-page cumulative counters so they don't explode the "Competenze" sum
+            // Ignora i contatori cumulativi a fine pagina
             if (lowerLine.startsWith("imp.") || lowerLine.startsWith("irpef pagata") || lowerLine.contains("residuo ap")) {
                 continue;
             }
 
             // Estrazione del valore finale della riga
-            Matcher mValue = Pattern.compile("([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})$").matcher(trimmedLine);
+            Matcher mValue = Pattern.compile("(-?[\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})$").matcher(trimmedLine);
             if (!mValue.find()) continue;
 
             Double importo = parseItalianNumber(mValue.group(1));
@@ -96,19 +168,27 @@ public class PdfParserService {
                 if (lowerLine.contains("c/ditta")) voce.setTipo(VoceCedolino.TipoVoce.CARICO_DITTA);
                 else voce.setTipo(VoceCedolino.TipoVoce.FIGURATIVO);
             } 
-            else if (trimmedLine.matches("^[\\*\\s]*F0[12][0-9]{3}.*") || trimmedLine.matches("^[\\*\\s]*F0332[0-1].*") || 
-                     lowerLine.contains("t.f.r.") || lowerLine.contains("deducib") || lowerLine.contains("imponibile")) {
+            // Trattenute (IRPEF, ritenute fiscali, contributi IVS/CIGS/FIS, FONTE dipendente, addizionali, arrotondamenti)
+            else if (trimmedLine.matches("^[\\*\\s]*F03[0-9]{3}.*") || 
+                     trimmedLine.matches("^[\\*\\s]*F0602[0-9].*") ||
+                     trimmedLine.matches("^[\\*\\s]*F09[0-9]{3}.*") ||
+                     lowerLine.contains("trattenut") || lowerLine.contains("ritenut") || lowerLine.contains("contribut") || 
+                     lowerLine.contains("contr.") || lowerLine.contains("cigs") || lowerLine.contains("fis d.lgs") || 
+                     lowerLine.contains("addizional") || lowerLine.contains("imposta") || lowerLine.contains("arrotond") || 
+                     lowerLine.contains("recuper") || (lowerLine.contains("fonte") && !lowerLine.contains("c/ditta"))) {
+                voce.setTipo(VoceCedolino.TipoVoce.TRATTENUTA);
+            }
+            // Voci Informative (TUTTI i codici fiscali F0... non trattenute, es: F01, F02, F06, F07, F08, TFR, Detrazioni)
+            else if (trimmedLine.matches("^[\\*\\s]*F0[0-9]{4}.*") || 
+                     lowerLine.contains("t.f.r.") || lowerLine.contains("deducib") || lowerLine.contains("imponibile") || 
+                     lowerLine.contains("lorda") || lowerLine.contains("detrazion") || lowerLine.contains("redd.rif") || 
+                     lowerLine.contains("cong.") || lowerLine.contains("conguaglio")) {
                 voce.setTipo(VoceCedolino.TipoVoce.INFORMATIVO);
                 if (lowerLine.contains("detrazioni lav.dip")) cedolino.setDetrazioni(importo);
                 if (lowerLine.contains("ulteriore detrazione")) cedolino.setUlterioriDetrazioni(importo);
                 if (lowerLine.contains("irpef lorda")) cedolino.setIrpefLorda(importo);
             }
-            else if (trimmedLine.matches("^[\\*\\s]*F03[0-9]{3}.*") || trimmedLine.matches("^[\\*\\s]*F09[0-9]{3}.*") ||
-                     lowerLine.contains("trattenut") || lowerLine.contains("contribut") || lowerLine.contains("cigs") || 
-                     lowerLine.contains("fis d.lgs") || lowerLine.contains("ritenut") || lowerLine.contains("addizional") || 
-                     lowerLine.contains("imposta") || lowerLine.contains("arrotond") || lowerLine.contains("recuper")) {
-                voce.setTipo(VoceCedolino.TipoVoce.TRATTENUTA);
-            }
+            // Competenze effettive del mese
             else {
                 voce.setTipo(VoceCedolino.TipoVoce.COMPETENZA);
             }
@@ -124,7 +204,7 @@ public class PdfParserService {
         Double totTrat = 0.0;
         Double arrotondamento = 0.0;
 
-        for(VoceCedolino v : voci) {
+        for (VoceCedolino v : voci) {
             if (v.getTipo() == VoceCedolino.TipoVoce.COMPETENZA) totComp += v.getImporto();
             if (v.getTipo() == VoceCedolino.TipoVoce.TRATTENUTA) totTrat += v.getImporto();
             if (v.getDescrizione().toLowerCase().contains("arrotond")) arrotondamento = v.getImporto();
@@ -134,52 +214,44 @@ public class PdfParserService {
         cedolino.setTotaleTrattenuteCalcolato(totTrat);
         cedolino.setArrotondamento(arrotondamento);
 
-        cedolino.setTotaleCompetenze(totComp);
-        cedolino.setTotaleTrattenute(totTrat);
+        // Usa i totali stampati ufficiali del cedolino se presenti e congruenti, altrimenti il calcolato
+        if (printedComp > 0 && Math.abs(totComp - printedComp) <= 150.0) {
+            cedolino.setTotaleCompetenze(printedComp);
+        } else {
+            cedolino.setTotaleCompetenze(totComp);
+        }
 
-        // 5. Contatori Dettagliati (Ferie, Ex-Fest e ROL) e FONTE
+        if (printedTrat != 0.0 && Math.abs(totTrat - printedTrat) <= 150.0) {
+            cedolino.setTotaleTrattenute(printedTrat);
+        } else {
+            cedolino.setTotaleTrattenute(totTrat);
+        }
+
+        // 5. Contatori Dettagliati Orari (Ferie, Ex-Fest e ROL) e FONTE
         for (String line : lines) {
             String lowerLine = line.trim().toLowerCase();
 
-            // Format 4 numbers: Residuo AP | Maturato | Goduto | Saldo
             if (lowerLine.startsWith("ferie")) {
-                Matcher m = Pattern.compile("(?i)Ferie\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+ORE").matcher(line);
-                if (m.find()) {
-                    cedolino.setFerieResidueAP(parseItalianNumber(m.group(1)));
-                    cedolino.setFerieMaturate(parseItalianNumber(m.group(2)));
-                    cedolino.setFerieGodute(parseItalianNumber(m.group(3)));
-                    cedolino.setFerieSaldo(parseItalianNumber(m.group(4)));
-                } else {
-                    // Fallback to simple extraction
-                    Matcher mSingle = Pattern.compile("([\\d\\.,]+)\\s+ORE", Pattern.CASE_INSENSITIVE).matcher(line);
-                    if (mSingle.find()) cedolino.setFerieSaldo(parseItalianNumber(mSingle.group(1)));
-                }
+                parseOrariLine(line, (ap, mat, god, sal) -> {
+                    cedolino.setFerieResidueAP(ap);
+                    cedolino.setFerieMaturate(mat);
+                    cedolino.setFerieGodute(god);
+                    cedolino.setFerieSaldo(sal);
+                });
             } else if (lowerLine.startsWith("ex-fest")) {
-                Matcher m = Pattern.compile("(?i)Ex-Fest\\.?\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+ORE").matcher(line);
-                if (m.find()) {
-                    cedolino.setExFestResidueAP(parseItalianNumber(m.group(1)));
-                    // We map group 2/3 generally; Zucchetti sometimes has less columns for ExFest, fallback handles that
-                    cedolino.setExFestSaldo(parseItalianNumber(m.group(4)));
-                } else {
-                    Matcher mSingle = Pattern.compile("([\\d\\.,]+)\\s+ORE", Pattern.CASE_INSENSITIVE).matcher(line);
-                    if (mSingle.find()) cedolino.setExFestSaldo(parseItalianNumber(mSingle.group(1)));
-                }
+                parseOrariLine(line, (ap, mat, god, sal) -> {
+                    cedolino.setExFestResidueAP(ap);
+                    cedolino.setExFestMaturate(mat);
+                    cedolino.setExFestGodute(god);
+                    cedolino.setExFestSaldo(sal);
+                });
             } else if (lowerLine.startsWith("r.o.l.")) {
-                Matcher m = Pattern.compile("(?i)R\\.O\\.L\\.?\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+ORE").matcher(line);
-                if (m.find()) {
-                    cedolino.setRolResiduoAP(parseItalianNumber(m.group(1)));
-                    cedolino.setRolSaldo(parseItalianNumber(m.group(4)));
-                } else {
-                    // Try 2 numbers
-                    Matcher mTwo = Pattern.compile("(?i)R\\.O\\.L\\.?\\s+([\\d\\.,]+)\\s+([\\d\\.,]+)\\s+ORE").matcher(line);
-                    if (mTwo.find()) {
-                        cedolino.setRolResiduoAP(parseItalianNumber(mTwo.group(1)));
-                        cedolino.setRolSaldo(parseItalianNumber(mTwo.group(2)));
-                    } else {
-                        Matcher mSingle = Pattern.compile("([\\d\\.,]+)\\s+ORE", Pattern.CASE_INSENSITIVE).matcher(line);
-                        if (mSingle.find()) cedolino.setRolSaldo(parseItalianNumber(mSingle.group(1)));
-                    }
-                }
+                parseOrariLine(line, (ap, mat, god, sal) -> {
+                    cedolino.setRolResiduoAP(ap);
+                    cedolino.setRolMaturate(mat);
+                    cedolino.setRolGodute(god);
+                    cedolino.setRolSaldo(sal);
+                });
             } else if (lowerLine.contains("fonte su retr.tfr")) {
                 Matcher m = Pattern.compile("([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{2})$").matcher(line.trim());
                 if (m.find()) {
@@ -193,14 +265,12 @@ public class PdfParserService {
         }
         
         // 6. Netto Mese Definitivo
-        // Use mathematical formula: Totale Competenze - Totale Trattenute
-        // We still fall back to PDF extraction if the calculation is too far off.
-        Double calcNetto = totComp - totTrat;
+        Double calcNetto = cedolino.getTotaleCompetenze() - cedolino.getTotaleTrattenute() + cedolino.getArrotondamento();
         
         Double extractedNetto = 0.0;
         for (int i = lines.length - 1; i >= 0; i--) {
             String line = lines[i].trim();
-            if (line.matches("^\\d{1,3}(\\.\\d{3})*,\\d{2}$")) {
+            if (line.matches("^\\d{1,3}(\\.\\d{3})*,\\d{2}\\s*€?$")) {
                 double val = parseItalianNumber(line);
                 if (val > 100) { 
                     extractedNetto = val;
@@ -218,14 +288,44 @@ public class PdfParserService {
             }
         }
         
-        // Always prefer the exact calculation if it's within a reasonable rounding margin
-        if (Math.abs(calcNetto - extractedNetto) <= 2.0) {
-             cedolino.setNettoMese(calcNetto);
+        if (extractedNetto > 0 && Math.abs(calcNetto - extractedNetto) <= 5.0) {
+            cedolino.setNettoMese(extractedNetto);
+        } else if (extractedNetto > 0) {
+            cedolino.setNettoMese(extractedNetto);
         } else {
-             cedolino.setNettoMese(extractedNetto); // Fallback to raw parsed text
+            cedolino.setNettoMese(calcNetto);
         }
 
         return cedolino;
+    }
+
+    private void parseOrariLine(String line, OrariConsumer consumer) {
+        Matcher m = Pattern.compile("([\\d]{1,3}(?:\\.[\\d]{3})*,[\\d]{1,5})").matcher(line);
+        List<Double> nums = new ArrayList<>();
+        while (m.find()) {
+            nums.add(parseItalianNumber(m.group(1)));
+        }
+        if (nums.isEmpty()) return;
+
+        double ap = 0.0, mat = 0.0, god = 0.0, sal = 0.0;
+        if (nums.size() >= 4) {
+            ap = nums.get(0);
+            mat = nums.get(1);
+            god = nums.get(2);
+            sal = nums.get(3);
+        } else if (nums.size() == 3) {
+            mat = nums.get(0);
+            god = nums.get(1);
+            sal = nums.get(2);
+            double calcAp = sal - mat + god;
+            if (calcAp > 0) ap = calcAp;
+        } else if (nums.size() == 2) {
+            mat = nums.get(0);
+            sal = nums.get(1);
+        } else {
+            sal = nums.get(0);
+        }
+        consumer.accept(ap, mat, god, sal);
     }
 
     private Double extractValueFromNextLine(String fullText, String keywordRegex) {

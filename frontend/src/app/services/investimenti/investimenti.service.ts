@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
 import { PatrimonioGiornaliero, PortafoglioMovimento } from '../../models/investimenti/investimenti.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -10,7 +11,7 @@ import { PatrimonioGiornaliero, PortafoglioMovimento } from '../../models/invest
 export class InvestimentiService {
   private http = inject(HttpClient);
   private platformId = inject(PLATFORM_ID);
-  private apiUrl = 'https://pagareader-1.onrender.com/api/investimenti';
+  private apiUrl = `${environment.apiUrl}/investimenti`;
 
   uploadExcel(file: File): Observable<any> {
     const formData = new FormData();

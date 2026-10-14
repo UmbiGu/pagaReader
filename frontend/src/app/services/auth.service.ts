@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap, BehaviorSubject } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
 import { PLATFORM_ID } from '@angular/core';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -10,6 +11,7 @@ import { PLATFORM_ID } from '@angular/core';
 export class AuthService {
   private http = inject(HttpClient);
   private platformId = inject(PLATFORM_ID);
+  private apiUrl = `${environment.apiUrl}/auth`;
   
   private authState = new BehaviorSubject<boolean>(this.checkToken());
   public isLoggedIn$ = this.authState.asObservable();
@@ -22,7 +24,7 @@ export class AuthService {
   }
 
   login(credentials: any): Observable<any> {
-    return this.http.post('https://pagareader-1.onrender.com/api/auth/login', credentials).pipe(
+    return this.http.post(`${this.apiUrl}/login`, credentials).pipe(
       tap((response: any) => {
         if (isPlatformBrowser(this.platformId) && response.token) {
           localStorage.setItem('pagareader-token', response.token);

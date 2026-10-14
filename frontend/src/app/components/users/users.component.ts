@@ -2,6 +2,7 @@ import { Component, OnInit, inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-users',
@@ -89,7 +90,7 @@ import { FormsModule } from '@angular/forms';
 export class UsersComponent implements OnInit {
   private http = inject(HttpClient);
   private platformId = inject(PLATFORM_ID);
-  private apiUrl = 'https://pagareader-1.onrender.com/api/admin/users';
+  private apiUrl = `${environment.apiUrl}/admin/users`;
 
   users: any[] = [];
   showAddForm = false;

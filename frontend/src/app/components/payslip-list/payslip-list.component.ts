@@ -58,6 +58,15 @@ declare var bootstrap: any;
                   <td class="fw-bold ps-4">
                     <span class="badge bg-secondary bg-opacity-10 text-secondary me-2">{{ p.year }}</span>
                     {{ payslipService.getMonthName(p.month) }}
+                    <span *ngIf="p.aggiuntiva && p.month === 12" class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle ms-1">
+                      13ª Mensilità
+                    </span>
+                    <span *ngIf="p.aggiuntiva && p.month === 6" class="badge bg-info bg-opacity-10 text-info border border-info-subtle ms-1">
+                      14ª Mensilità
+                    </span>
+                    <span *ngIf="p.aggiuntiva && p.month !== 12 && p.month !== 6" class="badge bg-secondary bg-opacity-10 text-secondary border ms-1">
+                      Mensilità Aggiuntiva
+                    </span>
                   </td>
                   <td>€ {{ p.baseSalary | number:'1.2-2' }}</td>
                   <td>€ {{ p.inpsTaxable | number:'1.2-2' }}</td>
@@ -264,6 +273,7 @@ export class PayslipListComponent implements OnInit {
     this.isUploading = true;
     this.uploadError = '';
     let completed = 0;
+    const errors: string[] = [];
 
     for (let i = 0; i < files.length; i++) {
       this.payslipService.uploadPayslip(files[i]).subscribe({
@@ -271,16 +281,23 @@ export class PayslipListComponent implements OnInit {
           completed++;
           if (completed === files.length) {
             this.isUploading = false;
+            if (errors.length > 0) {
+              this.uploadError = errors.join(' | ');
+            }
             this.fetchData();
+            if (event.target) event.target.value = '';
           }
         },
         error: (err) => {
           console.error(err);
-          this.uploadError = `Error uploading ${files[i].name}`;
+          const msg = err.error?.message || err.error || `Errore nel caricamento di ${files[i].name}`;
+          errors.push(msg);
           completed++;
           if (completed === files.length) {
             this.isUploading = false;
+            this.uploadError = errors.join(' | ');
             this.fetchData();
+            if (event.target) event.target.value = '';
           }
         }
       });
