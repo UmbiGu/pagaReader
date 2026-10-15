@@ -1,9 +1,23 @@
 package com.pagareader.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "cedolini")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Cedolino {
 
     @Id
@@ -12,28 +26,20 @@ public class Cedolino {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    @com.fasterxml.jackson.annotation.JsonIgnore
+    @JsonIgnore
     private AppUser user;
 
     // --- VOCI VARIABILI DEL MESE ---
     @OneToMany(mappedBy = "cedolino", cascade = CascadeType.ALL, orphanRemoval = true)
-    private java.util.List<VoceCedolino> voci = new java.util.ArrayList<>();
+    @Builder.Default
+    private List<VoceCedolino> voci = new ArrayList<>();
 
+    @Builder.Default
     private Double totaleCompetenzeCalcolato = 0.0;
+    @Builder.Default
     private Double totaleTrattenuteCalcolato = 0.0;
+    @Builder.Default
     private Double arrotondamento = 0.0;
-
-    public java.util.List<VoceCedolino> getVoci() { return voci; }
-    public void setVoci(java.util.List<VoceCedolino> voci) { this.voci = voci; }
-    
-    public Double getTotaleCompetenzeCalcolato() { return totaleCompetenzeCalcolato; }
-    public void setTotaleCompetenzeCalcolato(Double totaleCompetenzeCalcolato) { this.totaleCompetenzeCalcolato = totaleCompetenzeCalcolato; }
-    
-    public Double getTotaleTrattenuteCalcolato() { return totaleTrattenuteCalcolato; }
-    public void setTotaleTrattenuteCalcolato(Double totaleTrattenuteCalcolato) { this.totaleTrattenuteCalcolato = totaleTrattenuteCalcolato; }
-    
-    public Double getArrotondamento() { return arrotondamento; }
-    public void setArrotondamento(Double arrotondamento) { this.arrotondamento = arrotondamento; }
 
     // --- DATI ANAGRAFICI E AZIENDALI ---
     private String azienda;
@@ -50,188 +56,104 @@ public class Cedolino {
     private String scattiAnzianita;
 
     // --- PROGRESSIVI ANNUI E TFR ---
+    @Builder.Default
     private Double imponibileInpsProgressivo = 0.0;
+    @Builder.Default
     private Double imponibileInailProgressivo = 0.0;
+    @Builder.Default
     private Double imponibileIrpefProgressivo = 0.0;
+    @Builder.Default
     private Double irpefPagataProgressiva = 0.0;
+    @Builder.Default
     private Double tfrMese = 0.0;
 
     // --- PERIODO ---
     private Integer mese;
     private Integer anno;
+    @Builder.Default
     private Boolean aggiuntiva = false;
 
-    public Boolean getAggiuntiva() { return aggiuntiva != null && aggiuntiva; }
-    public void setAggiuntiva(Boolean aggiuntiva) { this.aggiuntiva = aggiuntiva; }
+    public Boolean getAggiuntiva() {
+        return aggiuntiva != null && aggiuntiva;
+    }
 
     // --- COMPETENZE FISSE ---
+    @Builder.Default
     private Double pagaBase = 0.0;
+    @Builder.Default
     private Double contingenza = 0.0;
+    @Builder.Default
     private Double terzoElemento = 0.0;
+    @Builder.Default
     private Double superminimo = 0.0;
+    @Builder.Default
     private Double straordinarioForfetizzato = 0.0;
+    @Builder.Default
     private Double edr = 0.0;
 
     // --- IMPONIBILI E TASSE ---
+    @Builder.Default
     private Double imponibileInps = 0.0;
+    @Builder.Default
     private Double imponibileInail = 0.0;
+    @Builder.Default
     private Double imponibileIrpef = 0.0;
+    @Builder.Default
     private Double irpefLorda = 0.0;
+    @Builder.Default
     private Double irpefNetta = 0.0;
+    @Builder.Default
     private Double detrazioni = 0.0;
+    @Builder.Default
     private Double ulterioriDetrazioni = 0.0;
 
     // --- TOTALI ---
+    @Builder.Default
     private Double totaleCompetenze = 0.0;
+    @Builder.Default
     private Double totaleTrattenute = 0.0;
+    @Builder.Default
     private Double nettoMese = 0.0;
 
     // --- CONTATORI FERIE ---
+    @Builder.Default
     private Double ferieResidueAP = 0.0;
+    @Builder.Default
     private Double ferieMaturate = 0.0;
+    @Builder.Default
     private Double ferieGodute = 0.0;
+    @Builder.Default
     private Double ferieSaldo = 0.0;
 
     // --- CONTATORI EX-FESTIVITA' ---
+    @Builder.Default
     private Double exFestResidueAP = 0.0;
+    @Builder.Default
     private Double exFestMaturate = 0.0;
+    @Builder.Default
     private Double exFestGodute = 0.0;
+    @Builder.Default
     private Double exFestSaldo = 0.0;
 
     // --- CONTATORI ROL ---
+    @Builder.Default
     private Double rolResiduoAP = 0.0;
+    @Builder.Default
     private Double rolMaturate = 0.0;
+    @Builder.Default
     private Double rolGodute = 0.0;
+    @Builder.Default
     private Double rolSaldo = 0.0;
 
-    // --- GETTERS E SETTERS ---
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public AppUser getUser() { return user; }
-    public void setUser(AppUser user) { this.user = user; }
-
-    public String getAzienda() { return azienda; }
-    public void setAzienda(String azienda) { this.azienda = azienda; }
-    public String getNomeDipendente() { return nomeDipendente; }
-    public void setNomeDipendente(String nomeDipendente) { this.nomeDipendente = nomeDipendente; }
-    public String getCodiceFiscale() { return codiceFiscale; }
-    public void setCodiceFiscale(String codiceFiscale) { this.codiceFiscale = codiceFiscale; }
-    public String getMatricola() { return matricola; }
-    public void setMatricola(String matricola) { this.matricola = matricola; }
-    public String getQualifica() { return qualifica; }
-    public void setQualifica(String qualifica) { this.qualifica = qualifica; }
-    public String getLivello() { return livello; }
-    public void setLivello(String livello) { this.livello = livello; }
-    public String getMansione() { return mansione; }
-    public void setMansione(String mansione) { this.mansione = mansione; }
-    public String getCcnl() { return ccnl; }
-    public void setCcnl(String ccnl) { this.ccnl = ccnl; }
-    public String getCnel() { return cnel; }
-    public void setCnel(String cnel) { this.cnel = cnel; }
-    public String getDataAssunzione() { return dataAssunzione; }
-    public void setDataAssunzione(String dataAssunzione) { this.dataAssunzione = dataAssunzione; }
-    public String getDataNascita() { return dataNascita; }
-    public void setDataNascita(String dataNascita) { this.dataNascita = dataNascita; }
-    public String getScattiAnzianita() { return scattiAnzianita; }
-    public void setScattiAnzianita(String scattiAnzianita) { this.scattiAnzianita = scattiAnzianita; }
-
-    public Double getImponibileInpsProgressivo() { return imponibileInpsProgressivo; }
-    public void setImponibileInpsProgressivo(Double imponibileInpsProgressivo) { this.imponibileInpsProgressivo = imponibileInpsProgressivo; }
-    public Double getImponibileInailProgressivo() { return imponibileInailProgressivo; }
-    public void setImponibileInailProgressivo(Double imponibileInailProgressivo) { this.imponibileInailProgressivo = imponibileInailProgressivo; }
-    public Double getImponibileIrpefProgressivo() { return imponibileIrpefProgressivo; }
-    public void setImponibileIrpefProgressivo(Double imponibileIrpefProgressivo) { this.imponibileIrpefProgressivo = imponibileIrpefProgressivo; }
-    public Double getIrpefPagataProgressiva() { return irpefPagataProgressiva; }
-    public void setIrpefPagataProgressiva(Double irpefPagataProgressiva) { this.irpefPagataProgressiva = irpefPagataProgressiva; }
-    public Double getTfrMese() { return tfrMese; }
-    public void setTfrMese(Double tfrMese) { this.tfrMese = tfrMese; }
-
-    public Integer getMese() { return mese; }
-    public void setMese(Integer mese) { this.mese = mese; }
-    public Integer getAnno() { return anno; }
-    public void setAnno(Integer anno) { this.anno = anno; }
-
-    public Double getPagaBase() { return pagaBase; }
-    public void setPagaBase(Double pagaBase) { this.pagaBase = pagaBase; }
-    public Double getContingenza() { return contingenza; }
-    public void setContingenza(Double contingenza) { this.contingenza = contingenza; }
-    public Double getTerzoElemento() { return terzoElemento; }
-    public void setTerzoElemento(Double terzoElemento) { this.terzoElemento = terzoElemento; }
-    public Double getSuperminimo() { return superminimo; }
-    public void setSuperminimo(Double superminimo) { this.superminimo = superminimo; }
-    public Double getStraordinarioForfetizzato() { return straordinarioForfetizzato; }
-    public void setStraordinarioForfetizzato(Double straordinarioForfetizzato) { this.straordinarioForfetizzato = straordinarioForfetizzato; }
-    public Double getEdr() { return edr; }
-    public void setEdr(Double edr) { this.edr = edr; }
-
-    public Double getImponibileInps() { return imponibileInps; }
-    public void setImponibileInps(Double imponibileInps) { this.imponibileInps = imponibileInps; }
-    public Double getImponibileInail() { return imponibileInail; }
-    public void setImponibileInail(Double imponibileInail) { this.imponibileInail = imponibileInail; }
-    public Double getImponibileIrpef() { return imponibileIrpef; }
-    public void setImponibileIrpef(Double imponibileIrpef) { this.imponibileIrpef = imponibileIrpef; }
-    public Double getIrpefLorda() { return irpefLorda; }
-    public void setIrpefLorda(Double irpefLorda) { this.irpefLorda = irpefLorda; }
-    public Double getIrpefNetta() { return irpefNetta; }
-    public void setIrpefNetta(Double irpefNetta) { this.irpefNetta = irpefNetta; }
-    public Double getDetrazioni() { return detrazioni; }
-    public void setDetrazioni(Double detrazioni) { this.detrazioni = detrazioni; }
-    public Double getUlterioriDetrazioni() { return ulterioriDetrazioni; }
-    public void setUlterioriDetrazioni(Double ulterioriDetrazioni) { this.ulterioriDetrazioni = ulterioriDetrazioni; }
-
-    public Double getTotaleCompetenze() { return totaleCompetenze; }
-    public void setTotaleCompetenze(Double totaleCompetenze) { this.totaleCompetenze = totaleCompetenze; }
-    public Double getTotaleTrattenute() { return totaleTrattenute; }
-    public void setTotaleTrattenute(Double totaleTrattenute) { this.totaleTrattenute = totaleTrattenute; }
-    public Double getNettoMese() { return nettoMese; }
-    public void setNettoMese(Double nettoMese) { this.nettoMese = nettoMese; }
-
-    public Double getFerieResidueAP() { return ferieResidueAP; }
-    public void setFerieResidueAP(Double ferieResidueAP) { this.ferieResidueAP = ferieResidueAP; }
-    public Double getFerieMaturate() { return ferieMaturate; }
-    public void setFerieMaturate(Double ferieMaturate) { this.ferieMaturate = ferieMaturate; }
-    public Double getFerieGodute() { return ferieGodute; }
-    public void setFerieGodute(Double ferieGodute) { this.ferieGodute = ferieGodute; }
-    public Double getFerieSaldo() { return ferieSaldo; }
-    public void setFerieSaldo(Double ferieSaldo) { this.ferieSaldo = ferieSaldo; }
-
-    public Double getExFestResidueAP() { return exFestResidueAP; }
-    public void setExFestResidueAP(Double exFestResidueAP) { this.exFestResidueAP = exFestResidueAP; }
-    public Double getExFestMaturate() { return exFestMaturate; }
-    public void setExFestMaturate(Double exFestMaturate) { this.exFestMaturate = exFestMaturate; }
-    public Double getExFestGodute() { return exFestGodute; }
-    public void setExFestGodute(Double exFestGodute) { this.exFestGodute = exFestGodute; }
-    public Double getExFestSaldo() { return exFestSaldo; }
-    public void setExFestSaldo(Double exFestSaldo) { this.exFestSaldo = exFestSaldo; }
-
-    public Double getRolResiduoAP() { return rolResiduoAP; }
-    public void setRolResiduoAP(Double rolResiduoAP) { this.rolResiduoAP = rolResiduoAP; }
-    public Double getRolMaturate() { return rolMaturate; }
-    public void setRolMaturate(Double rolMaturate) { this.rolMaturate = rolMaturate; }
-    public Double getRolGodute() { return rolGodute; }
-    public void setRolGodute(Double rolGodute) { this.rolGodute = rolGodute; }
-    public Double getRolSaldo() { return rolSaldo; }
-    public void setRolSaldo(Double rolSaldo) { this.rolSaldo = rolSaldo; }
-
     // --- PENSIONE FONTE ---
+    @Builder.Default
     private Double fonteDipendente = 0.0;
+    @Builder.Default
     private Double fonteAzienda = 0.0;
-
-    public Double getFonteDipendente() { return fonteDipendente; }
-    public void setFonteDipendente(Double fonteDipendente) { this.fonteDipendente = fonteDipendente; }
-    public Double getFonteAzienda() { return fonteAzienda; }
-    public void setFonteAzienda(Double fonteAzienda) { this.fonteAzienda = fonteAzienda; }
 
     // --- GESTIONE FILE ---
     private String fileName;
-    
+
     @Lob
     private byte[] fileData;
-
-    public String getFileName() { return fileName; }
-    public void setFileName(String fileName) { this.fileName = fileName; }
-    
-    public byte[] getFileData() { return fileData; }
-    public void setFileData(byte[] fileData) { this.fileData = fileData; }
 }

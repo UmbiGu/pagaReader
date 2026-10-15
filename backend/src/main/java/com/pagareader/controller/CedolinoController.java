@@ -4,8 +4,8 @@ import com.pagareader.entity.AppUser;
 import com.pagareader.entity.Cedolino;
 import com.pagareader.repository.CedolinoRepository;
 import com.pagareader.service.PdfParserService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,17 +18,12 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/cedolini")
+@RequiredArgsConstructor
+@Slf4j
 public class CedolinoController {
-
-    private static final Logger log = LoggerFactory.getLogger(CedolinoController.class);
 
     private final CedolinoRepository repository;
     private final PdfParserService pdfParserService;
-
-    public CedolinoController(CedolinoRepository repository, PdfParserService pdfParserService) {
-        this.repository = repository;
-        this.pdfParserService = pdfParserService;
-    }
 
     private AppUser getCurrentUser() {
         return (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

@@ -36,6 +36,19 @@ public interface MargineMovimentoRepository extends JpaRepository<MargineMovimen
     @Query("""
         DELETE FROM MargineMovimento m
         WHERE m.user.id = :userId
+          AND m.anno = :anno
+          AND m.mese = :mese
+    """)
+    void deleteByUserIdAndPeriodo(
+        @Param("userId") Long userId,
+        @Param("anno") Integer anno,
+        @Param("mese") Integer mese
+    );
+
+    @Modifying
+    @Query("""
+        DELETE FROM MargineMovimento m
+        WHERE m.user.id = :userId
     """)
     void deleteByUserId(@Param("userId") Long userId);
 }

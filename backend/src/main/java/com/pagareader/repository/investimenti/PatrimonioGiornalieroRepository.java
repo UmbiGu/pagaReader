@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface PatrimonioGiornalieroRepository extends JpaRepository<PatrimonioGiornaliero, Long> {
@@ -30,6 +31,18 @@ public interface PatrimonioGiornalieroRepository extends JpaRepository<Patrimoni
         @Param("userId") Long userId,
         @Param("dataValuta") LocalDate dataValuta
     );
+
+    @Query("""
+        SELECT p.dataValuta FROM PatrimonioGiornaliero p
+        WHERE p.user.id = :userId
+    """)
+    Set<LocalDate> findDatesByUserId(@Param("userId") Long userId);
+
+    @Query("""
+        SELECT COUNT(p) FROM PatrimonioGiornaliero p
+        WHERE p.user.id = :userId
+    """)
+    long countByUserId(@Param("userId") Long userId);
 
     @Modifying
     @Query("""

@@ -19,6 +19,12 @@ public interface PortafoglioMovimentoRepository extends JpaRepository<Portafogli
     """)
     List<PortafoglioMovimento> findByUserIdOrderByDataValutaAsc(@Param("userId") Long userId);
 
+    @Query("""
+        SELECT COUNT(m) FROM PortafoglioMovimento m
+        WHERE m.user.id = :userId
+    """)
+    long countByUserId(@Param("userId") Long userId);
+
     @Modifying
     @Query("""
         DELETE FROM PortafoglioMovimento m

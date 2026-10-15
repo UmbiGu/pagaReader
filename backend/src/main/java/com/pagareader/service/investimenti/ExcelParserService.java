@@ -3,9 +3,8 @@ package com.pagareader.service.investimenti;
 import com.pagareader.entity.AppUser;
 import com.pagareader.entity.investimenti.PatrimonioGiornaliero;
 import com.pagareader.entity.investimenti.PortafoglioMovimento;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,11 +16,12 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Service
+@Slf4j
 public class ExcelParserService {
 
-    private static final Logger log = LoggerFactory.getLogger(ExcelParserService.class);
+    private static final DateTimeFormatter FORMATTER_DD_MM_YYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    private static final List<DateTimeFormatter> DATE_FORMATTERS = Arrays.asList(
+    private static final List<DateTimeFormatter> DATE_FORMATTERS = List.of(
         DateTimeFormatter.ofPattern("dd/MM/yyyy"),
         DateTimeFormatter.ofPattern("d/M/yyyy"),
         DateTimeFormatter.ofPattern("dd-MM-yyyy"),
@@ -202,17 +202,16 @@ public class ExcelParserService {
             return null;
         }
 
-        PatrimonioGiornaliero p = new PatrimonioGiornaliero();
-        p.setUser(user);
-        p.setDataValuta(date);
-        p.setLiquidita(liq);
-        p.setFinanziamentoLong(fin);
-        p.setGaranziaShort(gar);
-        p.setPortafoglio(port);
-        p.setPatrimonio(patr);
-        p.setNotaMovimento(notaCol >= 0 ? getCellString(row.getCell(notaCol)) : "");
-
-        return p;
+        return PatrimonioGiornaliero.builder()
+                .user(user)
+                .dataValuta(date)
+                .liquidita(liq)
+                .finanziamentoLong(fin)
+                .garanziaShort(gar)
+                .portafoglio(port)
+                .patrimonio(patr)
+                .notaMovimento(notaCol >= 0 ? getCellString(row.getCell(notaCol)) : "")
+                .build();
     }
 
     private PortafoglioMovimento parseMovimentoRow(Row row, AppUser user, Map<String, Integer> colMap, LocalDate date) {
@@ -230,22 +229,21 @@ public class ExcelParserService {
         String ticker = tickCol >= 0 ? getCellString(row.getCell(tickCol)) : "";
         String nota = notaCol >= 0 ? getCellString(row.getCell(notaCol)) : "";
 
-        // Row must have a description or a non-zero value
-        if (desc.isEmpty() && val == 0.0 && tit.isEmpty() && isin.isEmpty() && ticker.isEmpty()) {
+        // Validate that this row has at least some meaningful info
+        if (desc.isEmpty() && tit.isEmpty() && val == 0.0 && isin.isEmpty() && ticker.isEmpty()) {
             return null;
         }
 
-        PortafoglioMovimento m = new PortafoglioMovimento();
-        m.setUser(user);
-        m.setDataValuta(date);
-        m.setDescrizione(desc);
-        m.setValore(val);
-        m.setDescrizioneTitolo(tit);
-        m.setIsin(isin);
-        m.setTicker(ticker);
-        m.setNotaMovimento(nota);
-
-        return m;
+        return PortafoglioMovimento.builder()
+                .user(user)
+                .dataValuta(date)
+                .descrizione(desc)
+                .valore(val)
+                .descrizioneTitolo(tit)
+                .isin(isin)
+                .ticker(ticker)
+                .notaMovimento(nota)
+                .build();
     }
 
     private LocalDate parseCellDate(Cell cell) {
@@ -298,7 +296,7 @@ public class ExcelParserService {
                 case STRING -> cell.getStringCellValue().trim();
                 case NUMERIC -> {
                     if (DateUtil.isCellDateFormatted(cell)) {
-                        yield cell.getLocalDateTimeCellValue().toLocalDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                        yield cell.getLocalDateTimeCellValue().toLocalDate().format(FORMATTER_DD_MM_YYYY);
                     }
                     double num = cell.getNumericCellValue();
                     if (num == Math.floor(num) && !Double.isInfinite(num)) {
@@ -338,11 +336,16 @@ public class ExcelParserService {
                     try {
                         return cell.getNumericCellValue();
                     } catch (Exception e) {
-                        return parseDoubleString(cell.getStringCellValue());
+                        String str = cell.getStringCellValue().trim();
+                        return parseNumericString(str);
                     }
                 }
                 case STRING -> {
-                    return parseDoubleString(cell.getStringCellValue());
+                    String str = cell.getStringCellValue().trim();
+                    return parseNumericString(str);
+                }
+                case BOOLEAN -> {
+                    return cell.getBooleanCellValue() ? 1.0 : 0.0;
                 }
                 default -> {
                     return 0.0;
@@ -353,21 +356,14 @@ public class ExcelParserService {
         }
     }
 
-    private Double parseDoubleString(String val) {
-        if (val == null || val.isBlank()) return 0.0;
-        String cleaned = val.replace("€", "")
-                            .replace("EUR", "")
-                            .replace("\u00A0", "")
+    private Double parseNumericString(String str) {
+        if (str == null || str.isBlank()) return 0.0;
+        String cleaned = str.replace("€", "")
                             .replace(" ", "")
-                            .trim();
-        if (cleaned.isEmpty() || cleaned.equals("-")) return 0.0;
+                            .replace("'", "");
 
         if (cleaned.contains(".") && cleaned.contains(",")) {
-            if (cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')) {
-                cleaned = cleaned.replace(".", "").replace(",", ".");
-            } else {
-                cleaned = cleaned.replace(",", "");
-            }
+            cleaned = cleaned.replace(".", "").replace(",", ".");
         } else if (cleaned.contains(",")) {
             cleaned = cleaned.replace(",", ".");
         }
@@ -381,15 +377,12 @@ public class ExcelParserService {
 
     private String normalizeText(String text) {
         if (text == null) return "";
-        return text.toLowerCase(Locale.ITALIAN)
-                   .replace("à", "a")
-                   .replace("è", "e")
-                   .replace("é", "e")
-                   .replace("ì", "i")
-                   .replace("ò", "o")
-                   .replace("ù", "u")
-                   .replace("'", "")
-                   .trim();
+        return text.trim().toLowerCase()
+                   .replace("€", "")
+                   .replace(".", "")
+                   .replace("-", "")
+                   .replace("_", "")
+                   .replace(" ", "");
     }
 
     public static class ParseResult {

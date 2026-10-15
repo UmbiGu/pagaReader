@@ -3,11 +3,9 @@ package com.pagareader.service.margine;
 import com.pagareader.entity.AppUser;
 import com.pagareader.entity.margine.MargineMese;
 import com.pagareader.entity.margine.MargineMovimento;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.time.LocalDate;
@@ -16,9 +14,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
+@Slf4j
 public class MargineExcelParserService {
 
-    private static final Logger log = LoggerFactory.getLogger(MargineExcelParserService.class);
+    private static final DateTimeFormatter FORMATTER_DD_MM_YYYY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public record ParseResult(List<MargineMese> mesi, List<MargineMovimento> movimenti) {}
 
@@ -61,159 +60,161 @@ public class MargineExcelParserService {
                     continue;
                 }
 
-                double calculatedUscite = 0.0;
-                Double parsedTotaleSpese = null;
-                Double parsedRisparmiati = null;
-                Double parsedEntrate = null;
-                Double parsedSpeseCasa = null;
+                // Parse movements and summary
+                List<MargineMovimento> sheetMovs = new ArrayList<>();
+                Double totaleSpese = 0.0;
+                Double entrate = 0.0;
+                Double risparmiati = 0.0;
+                Double speseCasa = 0.0;
 
-                // Scan rows starting after header
-                for (int r = headerRow + 1; r <= sheet.getLastRowNum(); r++) {
+                int lastRow = sheet.getLastRowNum();
+                for (int r = headerRow + 1; r <= lastRow; r++) {
                     Row row = sheet.getRow(r);
                     if (row == null) continue;
 
-                    Cell c0 = row.getCell(0);
-                    Cell c1 = row.getCell(1);
-                    Cell c2 = row.getCell(2);
-                    Cell c3 = row.getCell(3);
-                    Cell c4 = row.getCell(4);
-                    Cell c5 = row.getCell(5);
+                    Cell cell0 = row.getCell(0);
+                    Cell cell1 = row.getCell(1);
+                    Cell cell2 = row.getCell(2);
+                    Cell cell3 = row.getCell(3);
 
-                    LocalDate rowDate = getCellDate(c0);
-                    String desc = getCellString(c2);
-                    String descLower = desc.toLowerCase();
+                    String text0 = getCellString(cell0);
+                    String text1 = getCellString(cell1);
+                    String text2 = getCellString(cell2);
 
                     // Check for Totale Spese row
-                    if (descLower.contains("totale spese") || descLower.contains("tot. spese") || getCellString(c0).toLowerCase().contains("totale spese")) {
-                        Double tot = getCellDouble(c3);
-                        if (tot != null) parsedTotaleSpese = tot;
+                    if (text0.toLowerCase().contains("totale spese") ||
+                        text1.toLowerCase().contains("totale spese") ||
+                        text2.toLowerCase().contains("totale spese")) {
+                        Double val = getCellDouble(row.getCell(3));
+                        if (val == null) val = getCellDouble(row.getCell(2));
+                        if (val != null) totaleSpese = Math.abs(val);
                         continue;
                     }
 
-                    // Movement row if date is present and has description or expense
-                    if (rowDate != null) {
-                        String conto = getCellString(c1);
-                        Double uscite = getCellDouble(c3);
-                        if (uscite == null) uscite = 0.0;
-                        String note = getCellString(c4);
-                        Boolean pagato = getCellBoolean(c5);
-
-                        MargineMovimento mov = new MargineMovimento();
-                        mov.setUser(user);
-                        mov.setSheetName(sheetName);
-                        mov.setAnno(my.anno());
-                        mov.setMese(my.mese());
-                        mov.setData(rowDate);
-                        mov.setConto(conto.isEmpty() ? "Altro" : conto);
-                        mov.setDescrizione(desc.isEmpty() ? "Spesa" : desc);
-                        mov.setUscite(Math.round(uscite * 100.0) / 100.0);
-                        mov.setNote(note);
-                        mov.setPagato(pagato);
-                        mov.setCategoria(categorizeExpense(desc, note));
-
-                        movimentiList.add(mov);
-                        calculatedUscite += mov.getUscite();
-                    }
-
-                    // Also search anywhere in row for "risparmiati", "stipendio", "spese casa"
-                    for (int col = 0; col < Math.min(12, row.getLastCellNum()); col++) {
-                        String cellText = getCellString(row.getCell(col)).toLowerCase();
-                        if (cellText.contains("risparmiati")) {
-                            Double val = findNearbyNumber(sheet, r, col);
-                            if (val != null) parsedRisparmiati = val;
-                        } else if (cellText.contains("totale entrate") || cellText.contains("stipendio")) {
-                            Double val = findNearbyNumber(sheet, r, col);
-                            if (val != null && Math.abs(val) > 200.0) parsedEntrate = val;
-                        } else if (cellText.contains("spese casa")) {
-                            Double val = findNearbyNumber(sheet, r, col);
-                            if (val != null) parsedSpeseCasa = val;
+                    // Check for Summary labels in right columns or footer
+                    for (int c = 0; c < row.getLastCellNum(); c++) {
+                        String txt = getCellString(row.getCell(c)).toLowerCase();
+                        if (txt.contains("risparmiat")) {
+                            Double val = getCellDouble(row.getCell(c));
+                            if (val == null && c > 0) val = getCellDouble(row.getCell(c - 1));
+                            if (val == null && c + 1 < row.getLastCellNum()) val = getCellDouble(row.getCell(c + 1));
+                            if (val != null) risparmiati = val;
+                        } else if (txt.contains("stipendio") || txt.contains("entrate") || txt.contains("totale entrate")) {
+                            Double val = getCellDouble(row.getCell(c));
+                            if (val == null && c > 0) val = getCellDouble(row.getCell(c - 1));
+                            if (val == null && c + 1 < row.getLastCellNum()) val = getCellDouble(row.getCell(c + 1));
+                            if (val != null && val > 0) entrate = val;
+                        } else if (txt.contains("spese casa")) {
+                            Double val = getCellDouble(row.getCell(c));
+                            if (val == null && c + 1 < row.getLastCellNum()) val = getCellDouble(row.getCell(c + 1));
+                            if (val != null) speseCasa = val;
                         }
                     }
-                }
 
-                // Month summary calculations
-                MargineMese mm = new MargineMese();
-                mm.setUser(user);
-                mm.setSheetName(sheetName);
-                mm.setAnno(my.anno());
-                mm.setMese(my.mese());
+                    // Movement row: must have either a valid date or a description
+                    LocalDate data = getCellDate(cell0);
+                    String conto = text1.trim();
+                    String desc = text2.trim();
+                    Double uscite = getCellDouble(cell3);
 
-                double finalTotaleSpese = (parsedTotaleSpese != null && parsedTotaleSpese > 0.0)
-                        ? parsedTotaleSpese : calculatedUscite;
-                mm.setTotaleSpese(Math.round(finalTotaleSpese * 100.0) / 100.0);
-
-                if (parsedRisparmiati != null) {
-                    mm.setRisparmiati(Math.round(parsedRisparmiati * 100.0) / 100.0);
-                }
-
-                if (parsedEntrate != null) {
-                    mm.setEntrate(Math.round(parsedEntrate * 100.0) / 100.0);
-                    if (mm.getRisparmiati() == 0.0) {
-                        mm.setRisparmiati(Math.round((mm.getEntrate() - mm.getTotaleSpese()) * 100.0) / 100.0);
+                    if (desc.isEmpty() && !text1.isEmpty() && uscite != null) {
+                        desc = text1;
+                        conto = "isybank";
                     }
-                } else if (mm.getRisparmiati() != 0.0) {
-                    mm.setEntrate(Math.round((mm.getTotaleSpese() + mm.getRisparmiati()) * 100.0) / 100.0);
+
+                    if (desc.isEmpty() || uscite == null || uscite == 0.0) {
+                        continue;
+                    }
+
+                    // Note & Pagato columns (standard: col 4 = Note, col 5 = Pagato)
+                    String note = getCellString(row.getCell(4));
+                    Boolean pagato = getCellBoolean(row.getCell(5));
+
+                    // Category inference
+                    String categoria = inferCategory(desc, note);
+
+                    MargineMovimento mov = MargineMovimento.builder()
+                            .user(user)
+                            .sheetName(sheetName)
+                            .anno(my.anno())
+                            .mese(my.mese())
+                            .data(data != null ? data : LocalDate.of(my.anno(), my.mese(), 1))
+                            .conto(conto.isEmpty() ? "isybank" : conto)
+                            .descrizione(desc)
+                            .uscite(Math.abs(uscite))
+                            .note(note)
+                            .pagato(pagato != null ? pagato : true)
+                            .categoria(categoria)
+                            .build();
+
+                    sheetMovs.add(mov);
                 }
 
-                if (parsedSpeseCasa != null) {
-                    mm.setSpeseCasa(Math.round(parsedSpeseCasa * 100.0) / 100.0);
+                // If totaleSpese not explicitly in sheet, sum movements
+                if (totaleSpese == 0.0 && !sheetMovs.isEmpty()) {
+                    totaleSpese = sheetMovs.stream().mapToDouble(MargineMovimento::getUscite).sum();
                 }
+
+                // If risparmiati not parsed, derive from entrate - totaleSpese
+                if (risparmiati == 0.0 && entrate > 0.0) {
+                    risparmiati = entrate - totaleSpese;
+                }
+
+                MargineMese mm = MargineMese.builder()
+                        .user(user)
+                        .sheetName(sheetName)
+                        .anno(my.anno())
+                        .mese(my.mese())
+                        .totaleSpese(Math.round(totaleSpese * 100.0) / 100.0)
+                        .entrate(Math.round(entrate * 100.0) / 100.0)
+                        .risparmiati(Math.round(risparmiati * 100.0) / 100.0)
+                        .speseCasa(Math.round(speseCasa * 100.0) / 100.0)
+                        .build();
 
                 mesiList.add(mm);
+                movimentiList.addAll(sheetMovs);
             }
+
+            log.info("Margine Excel parsed successfully: {} months, {} movements", mesiList.size(), movimentiList.size());
         }
 
-        log.info("Margine Excel parsed successfully: {} months, {} movements", mesiList.size(), movimentiList.size());
         return new ParseResult(mesiList, movimentiList);
     }
 
-    private Double findNearbyNumber(Sheet sheet, int r, int col) {
-        // 1. Check cell ABOVE (most common in user's Excel)
-        if (r > 0 && sheet.getRow(r - 1) != null) {
-            Double d = getCellDouble(sheet.getRow(r - 1).getCell(col));
-            if (d != null) return d;
+    private String inferCategory(String desc, String note) {
+        String s = (desc + " " + note).toLowerCase();
+        if (s.contains("rata macchina") || s.contains("iliad") || s.contains("unipol") || s.contains("domiciliazion") || s.contains("ricarica") || s.contains("icloud") || s.contains("palestra")) {
+            return "Domiciliazioni";
         }
-        // 2. Check 2 cells ABOVE
-        if (r > 1 && sheet.getRow(r - 2) != null) {
-            Double d = getCellDouble(sheet.getRow(r - 2).getCell(col));
-            if (d != null) return d;
+        if (s.contains("affitto") || s.contains("bollett") || s.contains("luce") || s.contains("gas") || s.contains("energia") || s.contains("condominio") || s.contains("casa") || s.contains("deghi") || s.contains("brico")) {
+            return "Casa & Utenze";
         }
-        // 3. Check cell LEFT
-        Row row = sheet.getRow(r);
-        if (row != null && col > 0) {
-            Double d = getCellDouble(row.getCell(col - 1));
-            if (d != null) return d;
+        if (s.contains("benzina") || s.contains("pedaggio") || s.contains("parcheggio") || s.contains("treno") || s.contains("tagliando") || s.contains("gomme") || s.contains("telepass")) {
+            return "Auto & Trasporti";
         }
-        // 4. Check cell RIGHT
-        if (row != null && col + 1 < row.getLastCellNum()) {
-            Double d = getCellDouble(row.getCell(col + 1));
-            if (d != null) return d;
+        if (s.contains("dentista") || s.contains("analisi") || s.contains("visita") || s.contains("farmacia") || s.contains("medico") || s.contains("terapia") || s.contains("salute") || s.contains("coach") || s.contains("bombafit") || s.contains("zycortal")) {
+            return "Salute & Benessere";
         }
-        // 5. Check cell BELOW
-        if (r + 1 <= sheet.getLastRowNum() && sheet.getRow(r + 1) != null) {
-            Double d = getCellDouble(sheet.getRow(r + 1).getCell(col));
-            if (d != null) return d;
+        if (s.contains("volo") || s.contains("hotel") || s.contains("viaggio") || s.contains("vacanz") || s.contains("airbnb") || s.contains("bnb") || s.contains("tour") || s.contains("lisbona") || s.contains("polonia") || s.contains("armenia") || s.contains("corfu") || s.contains("orvieto")) {
+            return "Viaggi & Vacanze";
         }
-        return null;
-    }
-
-    private String categorizeExpense(String desc, String note) {
-        String text = (desc + " " + note).toLowerCase();
-        if (text.contains("domiciliazion")) return "Domiciliazioni";
-        if (text.contains("klarna") || text.contains("paypal")) return "Klarna / PayPal";
-        if (text.contains("affitto") || text.contains("casa") || text.contains("condominio") || text.contains("energia") || text.contains("acqua") || text.contains("internet") || text.contains("deghi")) return "Casa & Utenze";
-        if (text.contains("rata macchina") || text.contains("unipol") || text.contains("benzina") || text.contains("parcheggio") || text.contains("patente") || text.contains("box auto") || text.contains("garage")) return "Auto & Trasporti";
-        if (text.contains("palestra") || text.contains("bombafit") || text.contains("coach") || text.contains("dentista") || text.contains("analisi") || text.contains("ecografia") || text.contains("zycortal")) return "Salute & Benessere";
-        if (text.contains("volo") || text.contains("hotel") || text.contains("viaggio") || text.contains("bnb") || text.contains("tour") || text.contains("apt") || text.contains("treno") || text.contains("cracovia") || text.contains("polonia") || text.contains("armenia") || text.contains("portogallo") || text.contains("lisbona") || text.contains("corfu") || text.contains("toscana")) return "Viaggi & Vacanze";
-        if (text.contains("spesa") || text.contains("sigarette") || text.contains("sephora") || text.contains("zalando") || text.contains("birkenstock") || text.contains("tatuaggio") || text.contains("regal")) return "Shopping & Svago";
+        if (s.contains("klarna") || s.contains("paypal")) {
+            return "Klarna / PayPal";
+        }
+        if (s.contains("regal") || s.contains("sephora") || s.contains("zalando") || s.contains("concerto") || s.contains("cena") || s.contains("pranzo") || s.contains("aperitivo") || s.contains("birkenstock")) {
+            return "Shopping & Svago";
+        }
         return "Spese Varie";
     }
 
     private MonthYear parseMonthYear(String sheetName) {
         String s = sheetName.trim().toLowerCase();
-        int anno = 2026;
+        Integer anno = 2026; // Default to 2026
+
         if (s.contains("25")) anno = 2025;
         else if (s.contains("26")) anno = 2026;
+        else if (s.contains("2025")) anno = 2025;
+        else if (s.contains("2026")) anno = 2026;
 
         Integer mese = null;
         if (s.startsWith("gen")) mese = 1;
@@ -310,7 +311,7 @@ public class MargineExcelParserService {
                 if (s.matches("^\\d{4}-\\d{2}-\\d{2}.*")) {
                     return LocalDate.parse(s.substring(0, 10));
                 } else if (s.matches("^\\d{2}/\\d{2}/\\d{4}.*")) {
-                    return LocalDate.parse(s.substring(0, 10), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                    return LocalDate.parse(s.substring(0, 10), FORMATTER_DD_MM_YYYY);
                 }
             }
         } catch (Exception ignored) {}

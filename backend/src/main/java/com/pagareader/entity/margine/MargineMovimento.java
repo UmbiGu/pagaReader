@@ -3,10 +3,21 @@ package com.pagareader.entity.margine;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pagareader.entity.AppUser;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "margine_movimenti")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class MargineMovimento {
 
     @Id
@@ -24,46 +35,18 @@ public class MargineMovimento {
     private LocalDate data;
     private String conto;
     private String descrizione;
+
+    @Builder.Default
     private Double uscite = 0.0;
+
     private String note;
+
+    @Builder.Default
     private Boolean pagato = true;
+
     private String categoria;
 
-    public MargineMovimento() {}
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public AppUser getUser() { return user; }
-    public void setUser(AppUser user) { this.user = user; }
-
-    public String getSheetName() { return sheetName; }
-    public void setSheetName(String sheetName) { this.sheetName = sheetName; }
-
-    public Integer getAnno() { return anno; }
-    public void setAnno(Integer anno) { this.anno = anno; }
-
-    public Integer getMese() { return mese; }
-    public void setMese(Integer mese) { this.mese = mese; }
-
-    public LocalDate getData() { return data; }
-    public void setData(LocalDate data) { this.data = data; }
-
-    public String getConto() { return conto; }
-    public void setConto(String conto) { this.conto = conto; }
-
-    public String getDescrizione() { return descrizione; }
-    public void setDescrizione(String descrizione) { this.descrizione = descrizione; }
-
-    public Double getUscite() { return uscite; }
-    public void setUscite(Double uscite) { this.uscite = uscite; }
-
-    public String getNote() { return note; }
-    public void setNote(String note) { this.note = note; }
-
-    public Boolean getPagato() { return pagato != null && pagato; }
-    public void setPagato(Boolean pagato) { this.pagato = pagato; }
-
-    public String getCategoria() { return categoria; }
-    public void setCategoria(String categoria) { this.categoria = categoria; }
+    public Boolean getPagato() {
+        return pagato != null && pagato;
+    }
 }

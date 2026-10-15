@@ -6,36 +6,33 @@ import com.pagareader.entity.margine.MargineMovimento;
 import com.pagareader.repository.margine.MargineMeseRepository;
 import com.pagareader.repository.margine.MargineMovimentoRepository;
 import com.pagareader.service.margine.MargineExcelParserService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/margine")
+@RequiredArgsConstructor
+@Slf4j
 public class MargineController {
-
-    private static final Logger log = LoggerFactory.getLogger(MargineController.class);
 
     private final MargineMeseRepository meseRepository;
     private final MargineMovimentoRepository movimentoRepository;
     private final MargineExcelParserService parserService;
 
-    public MargineController(
-            MargineMeseRepository meseRepository,
-            MargineMovimentoRepository movimentoRepository,
-            MargineExcelParserService parserService) {
-        this.meseRepository = meseRepository;
-        this.movimentoRepository = movimentoRepository;
-        this.parserService = parserService;
-    }
+    private static final String[] NOMI_MESI = {
+        "", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+        "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+    };
 
     private AppUser getCurrentUser() {
         return (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -78,6 +75,92 @@ public class MargineController {
         return ResponseEntity.ok(list);
     }
 
+    @PostMapping("/mesi")
+    @Transactional
+    public ResponseEntity<?> createMese(@RequestBody MargineMese req) {
+        AppUser user = getCurrentUser();
+        if (req.getAnno() == null || req.getMese() == null) {
+            return ResponseEntity.badRequest().body("Anno e Mese sono obbligatori");
+        }
+
+        Optional<MargineMese> existing = meseRepository.findByUserAndPeriodo(user.getId(), req.getAnno(), req.getMese());
+        if (existing.isPresent()) {
+            return ResponseEntity.badRequest().body("Il mese selezionato (" + req.getMese() + "/" + req.getAnno() + ") esiste già.");
+        }
+
+        String label = req.getSheetName();
+        if (label == null || label.isBlank()) {
+            label = (req.getMese() >= 1 && req.getMese() <= 12 ? NOMI_MESI[req.getMese()] : "Mese " + req.getMese()) + " " + req.getAnno();
+        }
+
+        double entrate = req.getEntrate() != null ? req.getEntrate() : 0.0;
+        double speseCasa = req.getSpeseCasa() != null ? req.getSpeseCasa() : 0.0;
+        double totSpese = 0.0;
+
+        MargineMese mm = MargineMese.builder()
+                .user(user)
+                .anno(req.getAnno())
+                .mese(req.getMese())
+                .sheetName(label)
+                .entrate(entrate)
+                .speseCasa(speseCasa)
+                .totaleSpese(totSpese)
+                .risparmiati(entrate - totSpese)
+                .note(req.getNote())
+                .build();
+
+        MargineMese saved = meseRepository.save(mm);
+        log.info("Created new month {}/{} for user {}", saved.getMese(), saved.getAnno(), user.getEmail());
+        return ResponseEntity.ok(saved);
+    }
+
+    @PutMapping("/mesi/{id}")
+    @Transactional
+    public ResponseEntity<?> updateMese(@PathVariable Long id, @RequestBody MargineMese req) {
+        AppUser user = getCurrentUser();
+        Optional<MargineMese> opt = meseRepository.findById(id);
+        if (opt.isEmpty() || !opt.get().getUser().getId().equals(user.getId())) {
+            return ResponseEntity.status(403).body("Mese non trovato o non autorizzato");
+        }
+
+        MargineMese mm = opt.get();
+        if (req.getSheetName() != null && !req.getSheetName().isBlank()) {
+            mm.setSheetName(req.getSheetName());
+        }
+        if (req.getEntrate() != null) {
+            mm.setEntrate(req.getEntrate());
+        }
+        if (req.getSpeseCasa() != null) {
+            mm.setSpeseCasa(req.getSpeseCasa());
+        }
+        if (req.getNote() != null) {
+            mm.setNote(req.getNote());
+        }
+
+        double totSpese = mm.getTotaleSpese() != null ? mm.getTotaleSpese() : 0.0;
+        double entrate = mm.getEntrate() != null ? mm.getEntrate() : 0.0;
+        mm.setRisparmiati(Math.round((entrate - totSpese) * 100.0) / 100.0);
+
+        MargineMese updated = meseRepository.save(mm);
+        log.info("Updated month ID {} ({}/{}) for user {}", id, mm.getMese(), mm.getAnno(), user.getEmail());
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/mesi/{id}")
+    @Transactional
+    public ResponseEntity<?> deleteMese(@PathVariable Long id) {
+        AppUser user = getCurrentUser();
+        Optional<MargineMese> opt = meseRepository.findById(id);
+        if (opt.isPresent() && opt.get().getUser().getId().equals(user.getId())) {
+            MargineMese mm = opt.get();
+            movimentoRepository.deleteByUserIdAndPeriodo(user.getId(), mm.getAnno(), mm.getMese());
+            meseRepository.delete(mm);
+            log.info("Deleted month ID {} and associated movements for user {}", id, user.getEmail());
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.status(403).build();
+    }
+
     @GetMapping("/movimenti")
     @Transactional(readOnly = true)
     public ResponseEntity<List<MargineMovimento>> getMovimenti(
@@ -98,9 +181,25 @@ public class MargineController {
     public ResponseEntity<MargineMovimento> createMovimento(@RequestBody MargineMovimento mov) {
         AppUser user = getCurrentUser();
         mov.setUser(user);
-        if (mov.getData() == null) mov.setData(java.time.LocalDate.now());
+        if (mov.getData() == null) mov.setData(LocalDate.now());
         if (mov.getAnno() == null) mov.setAnno(mov.getData().getYear());
         if (mov.getMese() == null) mov.setMese(mov.getData().getMonthValue());
+
+        // Ensure associated month exists
+        Optional<MargineMese> optMese = meseRepository.findByUserAndPeriodo(user.getId(), mov.getAnno(), mov.getMese());
+        if (optMese.isEmpty()) {
+            String label = (mov.getMese() >= 1 && mov.getMese() <= 12 ? NOMI_MESI[mov.getMese()] : "Mese " + mov.getMese()) + " " + mov.getAnno();
+            MargineMese autoMese = MargineMese.builder()
+                    .user(user)
+                    .anno(mov.getAnno())
+                    .mese(mov.getMese())
+                    .sheetName(label)
+                    .entrate(0.0)
+                    .totaleSpese(0.0)
+                    .risparmiati(0.0)
+                    .build();
+            meseRepository.save(autoMese);
+        }
         
         MargineMovimento saved = movimentoRepository.save(mov);
         recalculateMonthSummary(user.getId(), mov.getAnno(), mov.getMese());
@@ -167,6 +266,8 @@ public class MargineController {
             mm.setTotaleSpese(sumUscite);
             if (mm.getEntrate() != null && mm.getEntrate() > 0.0) {
                 mm.setRisparmiati(Math.round((mm.getEntrate() - sumUscite) * 100.0) / 100.0);
+            } else {
+                mm.setRisparmiati(-sumUscite);
             }
             meseRepository.save(mm);
         }

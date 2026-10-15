@@ -2,9 +2,19 @@ package com.pagareader.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "voci_cedolino")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class VoceCedolino {
 
     public enum TipoVoce {
@@ -22,35 +32,15 @@ public class VoceCedolino {
 
     private String codiceVoce;
     private String descrizione;
+
+    @Builder.Default
     private Double importoBase = 0.0;
+
     private String riferimento;
+
+    @Builder.Default
     private Double importo = 0.0;
 
     @Enumerated(EnumType.STRING)
     private TipoVoce tipo;
-
-    // --- GETTERS & SETTERS ---
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    
-    public Cedolino getCedolino() { return cedolino; }
-    public void setCedolino(Cedolino cedolino) { this.cedolino = cedolino; }
-    
-    public String getCodiceVoce() { return codiceVoce; }
-    public void setCodiceVoce(String codiceVoce) { this.codiceVoce = codiceVoce; }
-    
-    public String getDescrizione() { return descrizione; }
-    public void setDescrizione(String descrizione) { this.descrizione = descrizione; }
-    
-    public Double getImportoBase() { return importoBase; }
-    public void setImportoBase(Double importoBase) { this.importoBase = importoBase; }
-    
-    public String getRiferimento() { return riferimento; }
-    public void setRiferimento(String riferimento) { this.riferimento = riferimento; }
-    
-    public Double getImporto() { return importo; }
-    public void setImporto(Double importo) { this.importo = importo; }
-    
-    public TipoVoce getTipo() { return tipo; }
-    public void setTipo(TipoVoce tipo) { this.tipo = tipo; }
 }

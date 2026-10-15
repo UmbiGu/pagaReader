@@ -6,35 +6,26 @@ import com.pagareader.entity.investimenti.PortafoglioMovimento;
 import com.pagareader.repository.investimenti.PatrimonioGiornalieroRepository;
 import com.pagareader.repository.investimenti.PortafoglioMovimentoRepository;
 import com.pagareader.service.investimenti.ExcelParserService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDate;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/investimenti")
+@RequiredArgsConstructor
+@Slf4j
 public class InvestimentiController {
-
-    private static final Logger log = LoggerFactory.getLogger(InvestimentiController.class);
 
     private final ExcelParserService excelParserService;
     private final PatrimonioGiornalieroRepository patrimonioRepository;
     private final PortafoglioMovimentoRepository movimentiRepository;
-
-    public InvestimentiController(
-            ExcelParserService excelParserService,
-            PatrimonioGiornalieroRepository patrimonioRepository,
-            PortafoglioMovimentoRepository movimentiRepository) {
-        this.excelParserService = excelParserService;
-        this.patrimonioRepository = patrimonioRepository;
-        this.movimentiRepository = movimentiRepository;
-    }
 
     private AppUser getCurrentUser() {
         return (AppUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -63,27 +54,74 @@ public class InvestimentiController {
                 ));
             }
 
-            // Sync patrimoni if parsed
+            // Incremental sync for patrimoni: append only new dates without invalidating historical data
+            int patrimoniAggiunti = 0;
             if (!result.patrimoni.isEmpty()) {
-                patrimonioRepository.deleteByUserId(user.getId());
-                patrimonioRepository.saveAll(result.patrimoni);
-                log.info("Persisted {} patrimonio records for user {}", result.patrimoni.size(), user.getEmail());
+                Set<LocalDate> existingDates = patrimonioRepository.findDatesByUserId(user.getId());
+                Map<LocalDate, PatrimonioGiornaliero> candidatesByDate = new LinkedHashMap<>();
+
+                for (PatrimonioGiornaliero pat : result.patrimoni) {
+                    if (pat.getDataValuta() != null && !existingDates.contains(pat.getDataValuta())) {
+                        candidatesByDate.put(pat.getDataValuta(), pat);
+                    }
+                }
+
+                List<PatrimonioGiornaliero> newPatrimoni = new ArrayList<>(candidatesByDate.values());
+                if (!newPatrimoni.isEmpty()) {
+                    patrimonioRepository.saveAll(newPatrimoni);
+                    patrimoniAggiunti = newPatrimoni.size();
+                    log.info("Incrementally saved {} new patrimonio records for user {}", patrimoniAggiunti, user.getEmail());
+                } else {
+                    log.info("All {} patrimonio records in Excel already exist for user {}", result.patrimoni.size(), user.getEmail());
+                }
             }
 
-            // Sync movimenti if parsed
+            // Incremental sync for movimenti: append only movements that do not already exist in historical data
+            int movimentiAggiunti = 0;
             if (!result.movimenti.isEmpty()) {
-                movimentiRepository.deleteByUserId(user.getId());
-                movimentiRepository.saveAll(result.movimenti);
-                log.info("Persisted {} movimenti records for user {}", result.movimenti.size(), user.getEmail());
+                List<PortafoglioMovimento> existingMovimenti = movimentiRepository.findByUserIdOrderByDataValutaAsc(user.getId());
+                Map<String, Integer> existingCounts = new HashMap<>();
+                for (PortafoglioMovimento m : existingMovimenti) {
+                    existingCounts.merge(buildMovimentoKey(m), 1, Integer::sum);
+                }
+
+                List<PortafoglioMovimento> newMovimenti = new ArrayList<>();
+                for (PortafoglioMovimento m : result.movimenti) {
+                    String key = buildMovimentoKey(m);
+                    int count = existingCounts.getOrDefault(key, 0);
+                    if (count > 0) {
+                        existingCounts.put(key, count - 1); // Exists in DB, skip
+                    } else {
+                        newMovimenti.add(m);
+                    }
+                }
+
+                if (!newMovimenti.isEmpty()) {
+                    movimentiRepository.saveAll(newMovimenti);
+                    movimentiAggiunti = newMovimenti.size();
+                    log.info("Incrementally saved {} new movimenti for user {}", movimentiAggiunti, user.getEmail());
+                } else {
+                    log.info("All {} movimenti in Excel already exist for user {}", result.movimenti.size(), user.getEmail());
+                }
             }
 
-            String msg = String.format("Sincronizzazione completata con successo: %d rilevazioni patrimonio e %d movimenti importati.",
-                result.patrimoni.size(), result.movimenti.size());
+            long totalPatrimoni = patrimonioRepository.countByUserId(user.getId());
+            long totalMovimenti = movimentiRepository.countByUserId(user.getId());
+
+            String msg;
+            if (patrimoniAggiunti == 0 && movimentiAggiunti == 0) {
+                msg = "I dati nel file Excel risultano già completamente importati. Nessun nuovo record aggiunto.";
+            } else {
+                msg = String.format("Sincronizzazione completata: aggiunte %d nuove rilevazioni patrimonio e %d nuovi movimenti. Storico attivo: %d rilevazioni, %d movimenti.",
+                    patrimoniAggiunti, movimentiAggiunti, totalPatrimoni, totalMovimenti);
+            }
 
             return ResponseEntity.ok(Map.of(
                 "message", msg,
-                "patrimoniProcessati", result.patrimoni.size(),
-                "movimentiProcessati", result.movimenti.size()
+                "patrimoniAggiunti", patrimoniAggiunti,
+                "movimentiAggiunti", movimentiAggiunti,
+                "patrimoniTotali", totalPatrimoni,
+                "movimentiTotali", totalMovimenti
             ));
 
         } catch (Exception e) {
@@ -93,6 +131,16 @@ public class InvestimentiController {
                 "message", "Errore durante il parsing del file Excel: " + errorDetails
             ));
         }
+    }
+
+    private String buildMovimentoKey(PortafoglioMovimento m) {
+        String data = m.getDataValuta() != null ? m.getDataValuta().toString() : "";
+        String desc = m.getDescrizione() != null ? m.getDescrizione().trim().toLowerCase() : "";
+        long valCents = m.getValore() != null ? Math.round(m.getValore() * 100.0) : 0L;
+        String isin = m.getIsin() != null ? m.getIsin().trim().toUpperCase() : "";
+        String ticker = m.getTicker() != null ? m.getTicker().trim().toUpperCase() : "";
+        String titolo = m.getDescrizioneTitolo() != null ? m.getDescrizioneTitolo().trim().toLowerCase() : "";
+        return data + "|" + desc + "|" + valCents + "|" + isin + "|" + ticker + "|" + titolo;
     }
 
     @GetMapping("/patrimonio")
