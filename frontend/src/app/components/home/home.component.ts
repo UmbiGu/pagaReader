@@ -217,8 +217,8 @@ import { Payslip } from '../../models/payslip.model';
             </div>
             
             <div class="table-responsive">
-              <table class="table table-sm table-hover text-center align-middle mb-0" style="font-size: 0.82rem;">
-                <thead class="border-bottom text-muted">
+              <table class="table table-modern table-sm table-hover text-center align-middle mb-0" style="font-size: 0.82rem;">
+                <thead class="table-light text-muted">
                   <tr>
                     <th class="text-start">Tipo</th>
                     <th>Res. AP</th>

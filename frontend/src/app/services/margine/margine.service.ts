@@ -15,6 +15,18 @@ export class MargineService {
     return this.http.get<MargineMese[]>(`${this.apiUrl}/mesi`);
   }
 
+  createMese(mese: Partial<MargineMese>): Observable<MargineMese> {
+    return this.http.post<MargineMese>(`${this.apiUrl}/mesi`, mese);
+  }
+
+  updateMese(id: number, mese: Partial<MargineMese>): Observable<MargineMese> {
+    return this.http.put<MargineMese>(`${this.apiUrl}/mesi/${id}`, mese);
+  }
+
+  deleteMese(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/mesi/${id}`);
+  }
+
   getMovimenti(anno?: number, mese?: number): Observable<MargineMovimento[]> {
     let url = `${this.apiUrl}/movimenti`;
     if (anno && mese) {
@@ -29,11 +41,11 @@ export class MargineService {
     return this.http.post(`${this.apiUrl}/upload`, formData);
   }
 
-  createMovimento(mov: MargineMovimento): Observable<MargineMovimento> {
+  createMovimento(mov: Partial<MargineMovimento>): Observable<MargineMovimento> {
     return this.http.post<MargineMovimento>(`${this.apiUrl}/movimenti`, mov);
   }
 
-  updateMovimento(id: number, mov: MargineMovimento): Observable<MargineMovimento> {
+  updateMovimento(id: number, mov: Partial<MargineMovimento>): Observable<MargineMovimento> {
     return this.http.put<MargineMovimento>(`${this.apiUrl}/movimenti/${id}`, mov);
   }
 

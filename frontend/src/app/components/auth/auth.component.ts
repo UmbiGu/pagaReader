@@ -22,23 +22,6 @@ import { AuthService } from '../../services/auth.service';
             {{ errorMsg }}
           </div>
 
-          <div class="d-grid gap-3 mb-4">
-            <!-- Apple SSO Mock -->
-            <button class="btn btn-dark rounded-pill py-2 fw-medium d-flex align-items-center justify-content-center" (click)="loginSSO()">
-              <i class="bi bi-apple fs-5 me-2"></i> Continue with Apple
-            </button>
-            
-            <!-- Google SSO Mock -->
-            <button class="btn btn-outline-secondary rounded-pill py-2 fw-medium d-flex align-items-center justify-content-center" (click)="loginSSO()">
-              <i class="bi bi-google fs-5 me-2 text-danger"></i> Continue with Google
-            </button>
-          </div>
-
-          <div class="position-relative mb-4">
-            <hr class="text-secondary opacity-25">
-            <span class="position-absolute top-50 start-50 translate-middle px-3 bg-body text-muted small">OR TEST ACCOUNT</span>
-          </div>
-
           <form (submit)="loginCredentials($event)">
             <div class="form-floating mb-3 text-start">
               <input type="email" class="form-control rounded-4" id="floatingInput" placeholder="name@example.com" [(ngModel)]="email" name="email">
@@ -66,10 +49,6 @@ export class AuthComponent {
   password = '';
   errorMsg = '';
   isLoading = false;
-
-  loginSSO() {
-    alert("SSO not configured in this demo.");
-  }
 
   loginCredentials(event: Event) {
     event.preventDefault();

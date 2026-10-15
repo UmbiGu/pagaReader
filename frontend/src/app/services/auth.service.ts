@@ -48,6 +48,10 @@ export class AuthService {
     return null;
   }
 
+  isLoggedIn(): boolean {
+    return !!this.getToken();
+  }
+
   isAdmin(): boolean {
     const token = this.getToken();
     if (!token) return false;

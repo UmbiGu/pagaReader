@@ -50,8 +50,8 @@ import { environment } from '../../../environments/environment';
     <div class="card shadow-sm border-0 animate-fade-in delay-1">
       <div class="card-body p-0">
         <div class="table-responsive">
-          <table class="table table-hover mb-0 align-middle">
-            <thead class="table-light text-secondary">
+          <table class="table table-modern table-hover mb-0 align-middle">
+            <thead class="table-light">
               <tr>
                 <th class="ps-4">ID</th>
                 <th>Email Account</th>

@@ -24,6 +24,10 @@ export class InvestimentiService {
     return this.http.get<PatrimonioGiornaliero[]>(`${this.apiUrl}/patrimonio`);
   }
 
+  getPatrimonioStorico(): Observable<PatrimonioGiornaliero[]> {
+    return this.getPatrimonio();
+  }
+
   getMovimenti(): Observable<PortafoglioMovimento[]> {
     if (!isPlatformBrowser(this.platformId)) return of([]);
     return this.http.get<PortafoglioMovimento[]>(`${this.apiUrl}/movimenti`);
